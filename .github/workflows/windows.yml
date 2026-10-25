@@ -1,0 +1,35 @@
+name: Windows Swift Build
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Swift Executable for Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Swift on Windows
+        uses: compnerd/swift-build-action@v1
+        with:
+          swift-version: '6.0.3'
+
+      - name: Build Windows Executable (.exe)
+        shell: cmd
+        run: |
+          IF NOT EXIST Package.swift (
+            echo Creating dynamic Swift Package manifest for Windows...
+            swift package init --type executable --name NyxOS
+          )
+          swift build -c release
+
+      - name: Upload Windows Executable (.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nyxos-windows-x64-exe
+          path: .build/release/NyxOS.exe
