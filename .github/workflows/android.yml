@@ -26,10 +26,7 @@ jobs:
 
       - name: Install Swift Android SDK
         run: |
-          SDK_URL="https://download.swift.org/swift-6.0-release/android-sdk/swift-6.0-RELEASE_android.artifactbundle.tar.gz"
-          wget -q "$SDK_URL" -O android-sdk.tar.gz
-          CHECKSUM=$(swift package compute-checksum android-sdk.tar.gz)
-          swift sdk install android-sdk.tar.gz --checksum "$CHECKSUM"
+          swift sdk install https://source.skip.tools/swift-android-toolchain/releases/download/6.0.3/swift-6.0.3-RELEASE-android-24-0.1.artifactbundle.tar.gz --checksum 4566f23ae2d36dc5c02e915cd67d83b2af971faca4b2595fdd75cf0286acfac1
 
       - name: Build NyxOS Core for Android (ARM64)
         run: |
