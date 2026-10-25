@@ -30,6 +30,7 @@ jobs:
 
       - name: Build NyxOS Core for Android (ARM64)
         run: |
+          export NDK_PATH=$ANDROID_NDK_HOME
           swift build --swift-sdk aarch64-unknown-linux-android24 -c release
 
       - name: Upload Native Android Binaries (.so)
