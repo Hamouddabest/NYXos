@@ -23,13 +23,19 @@ jobs:
           custom-sdk-id: 'swift-6.0.3-RELEASE-android-24-0.1'
           installed-sdk: 'aarch64-unknown-linux-android24'
 
-      - name: Compile Swift Code for Android
+      - name: Check and Compile Swift Sources
         run: |
-          # Finds your swift files and compiles them into a native Android library (.so)
-          swiftc -target aarch64-unknown-linux-android24 -emit-library $(find . -name "*.swift") -o libNyxOS.so
+          # 1. Check if Package.swift exists; if not, create a library manifest dynamically
+          if [ ! -f "Package.swift" ]; then
+            echo "No Package.swift found. Creating dynamic Swift Package manifest..."
+            swift package init --type library --name NyxOS
+          fi
+
+          # 2. Build for Android ARM64
+          swift build --swift-sdk aarch64-unknown-linux-android24 -c release
 
       - name: Upload Native Android Binaries (.so)
         uses: actions/upload-artifact@v4
         with:
           name: nyxos-android-arm64-binaries
-          path: libNyxOS.so
+          path: .build/aarch64-unknown-linux-android24/release/
