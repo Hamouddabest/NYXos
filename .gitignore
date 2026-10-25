@@ -1,0 +1,9 @@
+# Xcode / Swift Build Directories
+.build/
+DerivedData/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# OS Specific Files
+.DS_Store
+Thumbs.db
