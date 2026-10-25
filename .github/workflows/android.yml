@@ -1,0 +1,39 @@
+name: Android NDK Build
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Cross-Compile Swift for Android ARM64
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Swift Toolchain
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0'
+
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26b
+
+      - name: Install Swift Android SDK
+        run: |
+          swift sdk install https://download.swift.org/swift-6.0-release/android-sdk/swift-6.0-RELEASE_android.artifactbundle.tar.gz
+
+      - name: Build NyxOS Core for Android (ARM64)
+        run: |
+          swift build --swift-sdk aarch64-unknown-linux-android24 -c release
+
+      - name: Upload Native Android Binaries (.so)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nyxos-android-arm64-binaries
+          path: .build/aarch64-unknown-linux-android24/release/
