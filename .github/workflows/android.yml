@@ -14,19 +14,20 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Matching Swift Host Toolchain
+      - name: Set up Swift Toolchain
         uses: swift-actions/setup-swift@v2
         with:
           swift-version: '6.0.3'
 
-      - name: Setup Swift Android Toolchain
-        uses: skiptools/swift-android-action@v2
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
         with:
-          swift-version: '6.0.3'
-          build-package: false
-          custom-sdk-url: 'https://source.skip.tools/swift-android-toolchain/releases/download/6.0.3/swift-6.0.3-RELEASE-android-24-0.1.artifactbundle.tar.gz'
-          custom-sdk-id: 'swift-6.0.3-RELEASE-android-24-0.1'
-          installed-sdk: 'aarch64-unknown-linux-android24'
+          ndk-version: r26b
+
+      - name: Install Swift Android SDK
+        run: |
+          wget -q https://source.skip.tools/swift-android-toolchain/releases/download/6.0.3/swift-6.0.3-RELEASE-android-24-0.1.artifactbundle.tar.gz -O android-sdk.tar.gz
+          swift sdk install android-sdk.tar.gz --checksum 4566f23ae2d36dc5c02e915cd67d83b2af971faca4b2595fdd75cf0286acfac1
 
       - name: Check and Compile Swift Sources
         run: |
