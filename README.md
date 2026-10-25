@@ -27,3 +27,6 @@ git clone [https://github.com/Hamouddabest/NYXos.git](https://github.com/Hamoudd
 2. Open the project folder in your Swift development app on iPadOS or Xcode on macO
 
 3. Build and run ⁠NYXosApp.swift⁠.
+
+📄 License
+This project is licensed under the MIT License - see the LICENSE file for details.
