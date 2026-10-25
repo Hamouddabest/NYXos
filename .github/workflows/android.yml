@@ -14,10 +14,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Set up Matching Swift Host Toolchain
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0.3'
+
       - name: Setup Swift Android Toolchain
         uses: skiptools/swift-android-action@v2
         with:
-          swift-version: '6.0'
+          swift-version: '6.0.3'
           build-package: false
           custom-sdk-url: 'https://source.skip.tools/swift-android-toolchain/releases/download/6.0.3/swift-6.0.3-RELEASE-android-24-0.1.artifactbundle.tar.gz'
           custom-sdk-id: 'swift-6.0.3-RELEASE-android-24-0.1'
@@ -25,13 +30,11 @@ jobs:
 
       - name: Check and Compile Swift Sources
         run: |
-          # 1. Check if Package.swift exists; if not, create a library manifest dynamically
           if [ ! -f "Package.swift" ]; then
             echo "No Package.swift found. Creating dynamic Swift Package manifest..."
             swift package init --type library --name NyxOS
           fi
 
-          # 2. Build for Android ARM64
           swift build --swift-sdk aarch64-unknown-linux-android24 -c release
 
       - name: Upload Native Android Binaries (.so)
