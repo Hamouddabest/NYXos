@@ -14,18 +14,22 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build Swift Package for Android
+      - name: Setup Swift Android Toolchain
         uses: skiptools/swift-android-action@v2
         with:
           swift-version: '6.0'
-          swift-configuration: 'release'
-          run-tests: false
+          build-package: false
           custom-sdk-url: 'https://source.skip.tools/swift-android-toolchain/releases/download/6.0.3/swift-6.0.3-RELEASE-android-24-0.1.artifactbundle.tar.gz'
           custom-sdk-id: 'swift-6.0.3-RELEASE-android-24-0.1'
           installed-sdk: 'aarch64-unknown-linux-android24'
+
+      - name: Compile Swift Code for Android
+        run: |
+          # Finds your swift files and compiles them into a native Android library (.so)
+          swiftc -target aarch64-unknown-linux-android24 -emit-library $(find . -name "*.swift") -o libNyxOS.so
 
       - name: Upload Native Android Binaries (.so)
         uses: actions/upload-artifact@v4
         with:
           name: nyxos-android-arm64-binaries
-          path: .build/
+          path: libNyxOS.so
