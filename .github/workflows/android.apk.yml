@@ -1,0 +1,154 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Compile Swift & Build Android APK
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Swift Toolchain
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0.3'
+
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26b
+
+      - name: Install Swift Android SDK
+        run: |
+          wget -q https://source.skip.tools/swift-android-toolchain/releases/download/6.0.3/swift-6.0.3-RELEASE-android-24-0.1.artifactbundle.tar.gz -O android-sdk.tar.gz
+          swift sdk install android-sdk.tar.gz --checksum 4566f23ae2d36dc5c02e915cd67d83b2af971faca4b2595fdd75cf0286acfac1
+
+      - name: Check and Compile Swift Sources
+        run: |
+          if [ ! -f "Package.swift" ]; then
+            echo "No Package.swift found. Creating dynamic Swift Package manifest..."
+            swift package init --type library --name NyxOS
+          fi
+
+          swift build --swift-sdk aarch64-unknown-linux-android24 -c release
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Generate Android App Wrapper & Build APK
+        run: |
+          # 1. Create a minimal Android Gradle project structure
+          mkdir -p android-app/app/src/main/java/com/nyxos/app
+          mkdir -p android-app/app/src/main/jniLibs/arm64-v8a
+
+          # 2. Copy the compiled Swift .so library into the Android project
+          cp .build/aarch64-unknown-linux-android24/release/*.so android-app/app/src/main/jniLibs/arm64-v8a/ || true
+
+          # 3. Create AndroidManifest.xml
+          cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.nyxos.app">
+              <application
+                  android:allowBackup="true"
+                  android:label="NyxOS"
+                  android:theme="@android:style/Theme.NoTitleBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # 4. Create MainActivity.kt that loads your Swift library
+          cat << 'EOF' > android-app/app/src/main/java/com/nyxos/app/MainActivity.kt
+          package com.nyxos.app
+
+          import android.app.Activity
+          import android.os.Bundle
+          import android.widget.TextView
+
+          class MainActivity : Activity() {
+              companion object {
+                  init {
+                      System.loadLibrary("NyxOS")
+                  }
+              }
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  val tv = TextView(this)
+                  tv.text = "NyxOS Running Natively on Android! 🚀"
+                  tv.textSize = 22f
+                  setContentView(tv)
+              }
+          }
+          EOF
+
+          # 5. Create build.gradle files for Gradle build system
+          cat << 'EOF' > android-app/settings.gradle
+          rootProject.name = "NyxOSApp"
+          include ':app'
+          EOF
+
+          cat << 'EOF' > android-app/app/build.gradle
+          plugins {
+              id 'com.android.application'
+              id 'kotlin-android'
+          }
+          android {
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.nyxos.app"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          EOF
+
+          cat << 'EOF' > android-app/build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.4'
+                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0"
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+
+          # 6. Build the release APK using Gradle
+          cd android-app
+          chmod +x gradlew || true
+          # Use gradle wrapper or system gradle if available, let's bootstrap wrapper
+          gradle wrapper
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NyxOS-Android-App
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk
