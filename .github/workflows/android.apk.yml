@@ -43,7 +43,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Generate Android App Wrapper & Gradle Wrapper
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Generate Android App Wrapper Structure
         run: |
           mkdir -p android-app/app/src/main/java/com/nyxos/app
           mkdir -p android-app/app/src/main/jniLibs/arm64-v8a
@@ -131,34 +134,18 @@ jobs:
 
           cat << 'EOF' > android-app/build.gradle
           plugins {
-              id 'com.android.application' version '8.2.0' apply false
-              id 'org.jetbrains.kotlin.android' version '1.9.20' apply false
+              id 'com.android.application' version '8.1.4' apply false
+              id 'org.jetbrains.kotlin.android' version '1.9.0' apply false
           }
           EOF
-
-          cd android-app
-          # Use a stable gradle version directly via downloading the wrapper properties/jar to bypass gradle 9 incompatibility
-          mkdir -p gradle/wrapper
-          cat << 'EOT' > gradle/wrapper/gradle-wrapper.properties
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
-          networkTimeout=10000
-          validateDistributionUrl=true
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOT
-          
-          # Download gradle wrapper script
-          wget https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradlew -O gradlew
-          chmod +x gradlew
 
       - name: Build Android APK
         run: |
           cd android-app
           export ANDROID_HOME=$HOME/android-sdk
           mkdir -p $ANDROID_HOME
-          ./gradlew assembleDebug --no-daemon
+          # Use gradle directly provided by the setup-gradle action
+          gradle assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
