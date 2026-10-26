@@ -43,7 +43,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Generate Android App Wrapper Structure & Gradle Wrapper
+      - name: Generate Android App Wrapper & Gradle Wrapper
         run: |
           mkdir -p android-app/app/src/main/java/com/nyxos/app
           mkdir -p android-app/app/src/main/jniLibs/arm64-v8a
@@ -137,8 +137,21 @@ jobs:
           EOF
 
           cd android-app
-          # Generate Gradle Wrapper pinned to stable version 8.5 (avoids Gradle 9 API mismatch)
-          gradle wrapper --gradle-version 8.5
+          # Use a stable gradle version directly via downloading the wrapper properties/jar to bypass gradle 9 incompatibility
+          mkdir -p gradle/wrapper
+          cat << 'EOT' > gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
+          networkTimeout=10000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOT
+          
+          # Download gradle wrapper script
+          wget https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradlew -O gradlew
+          chmod +x gradlew
 
       - name: Build Android APK
         run: |
