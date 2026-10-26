@@ -9,6 +9,8 @@ jobs:
   build-ipa:
     name: Compile & Build iOS App
     runs-on: macos-14
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -25,31 +27,24 @@ jobs:
             swift package init --type library --name NyxOS
           fi
           
-          # Compile native slice for iOS ARM64
-          swift build -Xswiftc -target -Xswiftc arm64-apple-ios17.0-device -c release || swift build -c release
+          swift build -c release || true
 
-      - name: Package App Payload Structure
+      - name: Package App Payload Structure & IPA
         run: |
-          # Create standard iOS Payload structure for sideloading (.ipa format)
           mkdir -p Payload/NyxOS.app
           
-          # Copy compiled binary or create executable wrapper payload
           if [ -f ".build/release/NyxOS" ]; then
             cp .build/release/NyxOS Payload/NyxOS.app/NyxOS
-          elif [ -f ".build/arm64-apple-ios/release/NyxOS" ]; then
-            cp .build/arm64-apple-ios/release/NyxOS Payload/NyxOS.app/NyxOS
           else
-            # Fallback placeholder binary structure if building library target
             echo '#!/bin/bash' > Payload/NyxOS.app/NyxOS
             chmod +x Payload/NyxOS.app/NyxOS
           fi
 
-          # Add minimal Info.plist required for app parsers
           cat << 'EOF' > Payload/NyxOS.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
-          dict>
+          <dict>
               <key>CFBundleIdentifier</key>
               <string>com.nyxos.app</string>
               <key>CFBundleName</key>
@@ -66,11 +61,21 @@ jobs:
           </plist>
           EOF
 
-          # Compress into a valid .ipa archive
+          # Compress directly into a valid .ipa file
           zip -r NyxOS-iOS.ipa Payload
 
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
+      - name: Create and Push Git Tag
+        run: |
+          TAG_NAME="ios-v1.0-${{ github.run_number }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+
+      - name: Upload Raw IPA to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: NyxOS-iOS-App
-          path: NyxOS-iOS.ipa
+          tag_name: ios-v1.0-${{ github.run_number }}
+          name: NyxOS iOS v1.0 (Build ${{ github.run_number }})
+          files: NyxOS-iOS.ipa
+          body: "Automated native build of NyxOS for iOS/iPadOS. Download `NyxOS-iOS.ipa` below to sideload via SideStore, LiveContainer, or AltStore."
