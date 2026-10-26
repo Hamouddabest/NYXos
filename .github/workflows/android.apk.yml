@@ -43,9 +43,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
-
       - name: Generate Android App Wrapper Structure
         run: |
           mkdir -p android-app/app/src/main/java/com/nyxos/app
@@ -139,13 +136,17 @@ jobs:
           }
           EOF
 
-      - name: Build Android APK
+      - name: Download & Use Gradle 8.5 Binary Directly
         run: |
           cd android-app
+          # Download and extract stable Gradle 8.5 directly
+          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
+          unzip -q gradle-8.5-bin.zip
+          
+          # Run using the explicit Gradle 8.5 binary path
           export ANDROID_HOME=$HOME/android-sdk
           mkdir -p $ANDROID_HOME
-          # Use gradle directly provided by the setup-gradle action
-          gradle assembleDebug --no-daemon
+          ./gradle-8.5/bin/gradle assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
