@@ -111,6 +111,7 @@ jobs:
           include ':app'
           EOF
 
+          # Added explicit compileOptions and kotlinOptions JVM target matching Java 17
           cat << 'EOF' > android-app/app/build.gradle
           plugins {
               id 'com.android.application'
@@ -126,6 +127,13 @@ jobs:
                   versionCode 1
                   versionName "1.0"
               }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = '17'
+              }
           }
           EOF
 
@@ -136,7 +144,6 @@ jobs:
           }
           EOF
 
-          # Create local.properties to explicitly point Gradle to the runner's preinstalled SDK path
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android-app/local.properties
 
       - name: Build with Gradle 8.5 & Generate APK
@@ -145,7 +152,6 @@ jobs:
           wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
           unzip -q gradle-8.5-bin.zip
           
-          # Use ANDROID_SDK_ROOT cleanly and unset conflicting ANDROID_HOME
           export ANDROID_HOME=$ANDROID_SDK_ROOT
           unset ANDROID_SDK_ROOT
           
