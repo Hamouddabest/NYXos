@@ -24,9 +24,6 @@ jobs:
         with:
           ndk-version: r26b
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Swift Android SDK
         run: |
           swift sdk install https://source.skip.tools/swift-android-toolchain/releases/download/6.0.3/swift-6.0.3-RELEASE-android-24-0.1.artifactbundle.tar.gz --checksum 4566f23ae2d36dc5c02e915cd67d83b2af971faca4b2595fdd75cf0286acfac1
@@ -45,9 +42,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
 
       - name: Generate Android App Wrapper Structure
         run: |
@@ -145,7 +139,10 @@ jobs:
       - name: Build Android APK
         run: |
           cd android-app
-          gradle assembleDebug
+          # Automatically download sdk components via gradle android plugin if needed
+          export ANDROID_HOME=$HOME/android-sdk
+          mkdir -p $ANDROID_HOME
+          gradle assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
