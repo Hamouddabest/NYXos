@@ -26,8 +26,7 @@ jobs:
 
       - name: Install Swift Android SDK
         run: |
-          wget -q https://source.skip.tools/swift-android-toolchain/releases/download/6.0.3/swift-6.0.3-RELEASE-android-24-0.1.artifactbundle.tar.gz -O android-sdk.tar.gz
-          swift sdk install android-sdk.tar.gz --checksum 4566f23ae2d36dc5c02e915cd67d83b2af971faca4b2595fdd75cf0286acfac1
+          swift sdk install https://source.skip.tools/swift-android-toolchain/releases/download/6.0.3/swift-6.0.3-RELEASE-android-24-0.1.artifactbundle.tar.gz --checksum 4566f23ae2d36dc5c02e915cd67d83b2af971faca4b2595fdd75cf0286acfac1
 
       - name: Check and Compile Swift Sources
         run: |
