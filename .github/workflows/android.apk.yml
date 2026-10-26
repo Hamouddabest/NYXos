@@ -46,19 +46,15 @@ jobs:
 
       - name: Generate Android App Wrapper & Build APK
         run: |
-          # 1. Create a minimal Android Gradle project structure
           mkdir -p android-app/app/src/main/java/com/nyxos/app
           mkdir -p android-app/app/src/main/jniLibs/arm64-v8a
 
-          # 2. Copy the compiled Swift .so library into the Android project
           cp .build/aarch64-unknown-linux-android24/release/*.so android-app/app/src/main/jniLibs/arm64-v8a/ || true
 
-          # 3. Create AndroidManifest.xml
           cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="com.nyxos.app">
               <application
-                  android:allowBackup="true"
                   android:label="NyxOS"
                   android:theme="@android:style/Theme.NoTitleBar">
                   <activity
@@ -73,7 +69,6 @@ jobs:
           </manifest>
           EOF
 
-          # 4. Create MainActivity.kt that loads your Swift library
           cat << 'EOF' > android-app/app/src/main/java/com/nyxos/app/MainActivity.kt
           package com.nyxos.app
 
@@ -98,7 +93,6 @@ jobs:
           }
           EOF
 
-          # 5. Create build.gradle files for Gradle build system
           cat << 'EOF' > android-app/settings.gradle
           rootProject.name = "NyxOSApp"
           include ':app'
@@ -111,6 +105,7 @@ jobs:
           }
           android {
               compileSdk 34
+              namespace 'com.nyxos.app'
               defaultConfig {
                   applicationId "com.nyxos.app"
                   minSdk 24
@@ -121,31 +116,20 @@ jobs:
           }
           EOF
 
-          cat << 'EOF' > android-app/build.gradle
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.4'
-                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0"
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+          # Download a standard gradle wrapper files directly to avoid bootstrap errors
+          cd android-app
+          wget https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.properties -P gradle/wrapper/
+          gradle --init-script <(echo "allprojects { repositories { google(); mavenCentral() } }") init --type basic || true
+          
+          # Build using gradle directly with proper plugin management
+          cat << 'EOF' > build.gradle
+          plugins {
+              id 'com.android.application' version '8.2.0' apply false
+              id 'org.jetbrains.kotlin.android' version '1.9.20' apply false
           }
           EOF
 
-          # 6. Build the release APK using Gradle
-          cd android-app
-          chmod +x gradlew || true
-          # Use gradle wrapper or system gradle if available, let's bootstrap wrapper
-          gradle wrapper
-          ./gradlew assembleDebug
+          gradle assembleDebug || ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
