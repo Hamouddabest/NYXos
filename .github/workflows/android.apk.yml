@@ -136,16 +136,19 @@ jobs:
           }
           EOF
 
-      - name: Download & Use Gradle 8.5 Binary Directly
+          # Create local.properties to explicitly point Gradle to the runner's preinstalled SDK path
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android-app/local.properties
+
+      - name: Build with Gradle 8.5 & Generate APK
         run: |
           cd android-app
-          # Download and extract stable Gradle 8.5 directly
           wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
           unzip -q gradle-8.5-bin.zip
           
-          # Run using the explicit Gradle 8.5 binary path
-          export ANDROID_HOME=$HOME/android-sdk
-          mkdir -p $ANDROID_HOME
+          # Use ANDROID_SDK_ROOT cleanly and unset conflicting ANDROID_HOME
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          unset ANDROID_SDK_ROOT
+          
           ./gradle-8.5/bin/gradle assembleDebug --no-daemon
 
       - name: Upload APK Artifact
