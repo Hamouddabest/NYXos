@@ -43,7 +43,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Generate Android App Wrapper Structure
+      - name: Generate Android App Wrapper Structure & Gradle Wrapper
         run: |
           mkdir -p android-app/app/src/main/java/com/nyxos/app
           mkdir -p android-app/app/src/main/jniLibs/arm64-v8a
@@ -136,13 +136,16 @@ jobs:
           }
           EOF
 
+          cd android-app
+          # Generate Gradle Wrapper pinned to stable version 8.5 (avoids Gradle 9 API mismatch)
+          gradle wrapper --gradle-version 8.5
+
       - name: Build Android APK
         run: |
           cd android-app
-          # Automatically download sdk components via gradle android plugin if needed
           export ANDROID_HOME=$HOME/android-sdk
           mkdir -p $ANDROID_HOME
-          gradle assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
