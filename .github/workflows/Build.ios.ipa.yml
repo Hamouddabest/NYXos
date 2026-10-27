@@ -23,14 +23,13 @@ jobs:
 
       - name: Compile Real Mach-O Executable for iOS
         run: |
-          # Create a simple Swift main file to compile a true arm64 executable
           cat << 'EOF' > main.swift
           import Foundation
           print("NyxOS running natively on iOS!")
           EOF
 
-          # Compile explicitly for arm64 iOS
-          swiftc main.swift -target arm64-apple-ios16.0 -o NyxOS
+          # Compile explicitly targeting the iPhoneOS SDK sysroot
+          swiftc main.swift -target arm64-apple-ios16.0 -sdk $(xcrun --sdk iphoneos --show-sdk-path) -o NyxOS
 
       - name: Package Valid iOS App Payload & IPA
         run: |
@@ -40,7 +39,7 @@ jobs:
           cp NyxOS Payload/NyxOS.app/NyxOS
           chmod +x Payload/NyxOS.app/NyxOS
 
-          # Write a fully compliant Info.plist
+          # Write a fully compliant Info.plist with valid bundle structure
           cat << 'EOF' > Payload/NyxOS.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
