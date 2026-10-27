@@ -23,7 +23,7 @@ jobs:
           git push origin --delete "$TAG_NAME" || true
           git tag -d "$TAG_NAME" || true
 
-      - name: Install Zig & Compile Valid iOS Mach-O Binary
+      - name: Install Zig & Compile Freestanding iOS Binary
         run: |
           sudo apt-get update
           sudo apt-get install -y zig zip
@@ -32,8 +32,8 @@ jobs:
 
           echo 'int main() { return 0; }' > main.c
 
-          # Cross-compile using correct Zig 0.14 iOS target query
-          zig cc -target aarch64-ios main.c -o Payload/NyxOS.app/NyxOS
+          # Compile standalone freestanding binary for iOS without requiring libSystem
+          zig cc -target aarch64-ios -freestanding -nostdlib main.c -o Payload/NyxOS.app/NyxOS
           chmod +x Payload/NyxOS.app/NyxOS
 
           cat << 'EOF' > Payload/NyxOS.app/Info.plist
@@ -88,4 +88,4 @@ jobs:
           tag_name: nyxos-ios-latest
           name: NyxOS iOS (Latest Build)
           files: NyxOS-iOS.ipa
-          body: "Stable sideloadable build for `com.nyxos.app` compiled via Zig."
+          body: "Stable sideloadable build for `com.nyxos.app` compiled via Zig freestanding."
