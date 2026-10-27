@@ -25,20 +25,17 @@ jobs:
 
       - name: Install Zig & Compile Valid iOS Mach-O Binary
         run: |
-          # Install Zig compiler for cross-compilation
           sudo apt-get update
           sudo apt-get install -y zig zip
 
           mkdir -p Payload/NyxOS.app
 
-          # Write a minimal C source file
           echo 'int main() { return 0; }' > main.c
 
-          # Cross-compile natively to a valid iOS arm64 Mach-O executable using Zig
-          zig cc -target aarch64-apple-ios16.0 main.c -o Payload/NyxOS.app/NyxOS
+          # Cross-compile with correct iOS target syntax
+          zig cc -target aarch64-apple-ios main.c -o Payload/NyxOS.app/NyxOS
           chmod +x Payload/NyxOS.app/NyxOS
 
-          # Write fully compliant Info.plist required by SideStore preflight
           cat << 'EOF' > Payload/NyxOS.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -75,7 +72,6 @@ jobs:
           </plist>
           EOF
 
-          # Compress cleanly into the final .ipa archive
           zip -r NyxOS-iOS.ipa Payload
 
       - name: Create and Push Fresh Git Tag
@@ -92,4 +88,4 @@ jobs:
           tag_name: nyxos-ios-latest
           name: NyxOS iOS (Latest Build)
           files: NyxOS-iOS.ipa
-          body: "Stable sideloadable build for `com.nyxos.app` compiled via Zig for flawless preflight validation."
+          body: "Stable sideloadable build for `com.nyxos.app` compiled via Zig."
