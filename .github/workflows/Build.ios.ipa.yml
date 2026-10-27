@@ -32,8 +32,8 @@ jobs:
 
           echo 'int main() { return 0; }' > main.c
 
-          # Cross-compile with correct iOS target syntax
-          zig cc -target aarch64-apple-ios main.c -o Payload/NyxOS.app/NyxOS
+          # Cross-compile using correct Zig 0.14 iOS target query
+          zig cc -target aarch64-ios main.c -o Payload/NyxOS.app/NyxOS
           chmod +x Payload/NyxOS.app/NyxOS
 
           cat << 'EOF' > Payload/NyxOS.app/Info.plist
