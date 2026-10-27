@@ -14,19 +14,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install iOS Sideloading Tools (ldid)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ldid zip python3
-
-      - name: Generate & Sign Valid arm64 iOS App Package
+      - name: Generate & Package iOS App IPA
         run: |
           mkdir -p Payload/NyxOS.app
 
           # Generate a clean arm64 Mach-O binary via Python
           python3 -c '
           import struct
-          # MH_MAGIC_64, CPU_TYPE_ARM64, CPU_SUBTYPE_ARM64_ALL, MH_EXECUTE
           header = struct.pack("<IIIIIII", 
               0xfeedfacf, 0x0100000c, 0x00000000, 0x00000002, 0, 0, 0
           )
@@ -36,9 +30,6 @@ jobs:
           '
           
           chmod +x Payload/NyxOS.app/NyxOS
-
-          # Apply a valid ad-hoc signature using ldid so SideStore preflight accepts it
-          ldid -S Payload/NyxOS.app/NyxOS
 
           # Write fully compliant Info.plist for com.nyxos.app
           cat << 'EOF' > Payload/NyxOS.app/Info.plist
@@ -88,10 +79,10 @@ jobs:
           git tag $TAG_NAME
           git push origin $TAG_NAME || echo "Tag already exists"
 
-      - name: Upload Signed IPA to GitHub Release
+      - name: Upload IPA to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ios-v1.0-${{ github.run_number }}
           name: NyxOS iOS v1.0 (Build ${{ github.run_number }})
           files: NyxOS-iOS.ipa
-          body: "Instant Linux signed build for `com.nyxos.app`. Passes SideStore preflight checks."
+          body: "Instant Linux build for `com.nyxos.app`."
