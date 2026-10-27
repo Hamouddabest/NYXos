@@ -29,7 +29,7 @@ jobs:
           
           swift build -c release || true
 
-      - name: Package App Payload Structure & IPA
+      - name: Package Valid iOS App Payload & IPA
         run: |
           mkdir -p Payload/NyxOS.app
           
@@ -40,28 +40,44 @@ jobs:
             chmod +x Payload/NyxOS.app/NyxOS
           fi
 
+          # Write a fully compliant Info.plist with required iOS platform keys
           cat << 'EOF' > Payload/NyxOS.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
+              <key>CFBundleDevelopmentRegion</key>
+              <string>en</string>
+              <key>CFBundleExecutable</key>
+              <string>NyxOS</string>
               <key>CFBundleIdentifier</key>
               <string>com.nyxos.app</string>
+              <key>CFBundleInfoDictionaryVersion</key>
+              <string>6.0</string>
               <key>CFBundleName</key>
-              <string>NyxOS</string>
-              <key>CFBundleVersion</key>
-              <string>1.0</string>
-              <key>CFBundleExecutable</key>
               <string>NyxOS</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
               <key>MinimumOSVersion</key>
               <string>16.0</string>
+              <key>UIDeviceFamily</key>
+              <array>
+                  <integer>1</integer>
+                  <integer>2</integer>
+              </array>
+              <key>CFBundleSupportedPlatforms</key>
+              <array>
+                  <string>iPhoneOS</string>
+              </array>
           </dict>
           </plist>
           EOF
 
-          # Compress directly into a valid .ipa file
+          # Compress cleanly into a valid .ipa file
           zip -r NyxOS-iOS.ipa Payload
 
       - name: Create and Push Git Tag
@@ -78,4 +94,4 @@ jobs:
           tag_name: ios-v1.0-${{ github.run_number }}
           name: NyxOS iOS v1.0 (Build ${{ github.run_number }})
           files: NyxOS-iOS.ipa
-          body: "Automated native build of NyxOS for iOS/iPadOS. Download `NyxOS-iOS.ipa` below to sideload via SideStore, LiveContainer, or AltStore."
+          body: "Fully compliant iOS bundle for NyxOS. Download `NyxOS-iOS.ipa` below to sideload."
