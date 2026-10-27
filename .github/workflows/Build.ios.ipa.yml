@@ -14,6 +14,21 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Delete Duplicate Releases and Tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="ios-v1.0-${{ github.run_number }}"
+          
+          # Delete existing release if it exists
+          gh release delete "$TAG_NAME" --repo ${{ github.repository }} --yes || true
+          
+          # Delete existing remote tag if it exists
+          git push origin --delete "$TAG_NAME" || true
+          
+          # Delete local tag if it exists
+          git tag -d "$TAG_NAME" || true
+
       - name: Generate & Package iOS App IPA
         run: |
           mkdir -p Payload/NyxOS.app
@@ -77,7 +92,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag $TAG_NAME
-          git push origin $TAG_NAME || echo "Tag already exists"
+          git push origin $TAG_NAME
 
       - name: Upload IPA to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -85,4 +100,4 @@ jobs:
           tag_name: ios-v1.0-${{ github.run_number }}
           name: NyxOS iOS v1.0 (Build ${{ github.run_number }})
           files: NyxOS-iOS.ipa
-          body: "Instant Linux build for `com.nyxos.app`."
+          body: "Instant Linux build for `com.nyxos.app` with automatic duplicate cleanup."
