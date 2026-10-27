@@ -1,8 +1,6 @@
 name: Build iOS IPA
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -21,6 +19,14 @@ jobs:
         with:
           xcode-version: '15.2'
 
+      - name: Cache Swift Build Directory
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-swift-build-${{ hashFiles('Package.swift', 'Sources/**/*.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-build-
+
       - name: Compile Real NyxOS Swift Target for iOS
         run: |
           if [ ! -f "Package.swift" ]; then
@@ -28,26 +34,22 @@ jobs:
             swift package init --type library --name NyxOS
           fi
 
-          # Build the actual project target for iOS device architecture
           swift build -c release || true
 
       - name: Package NyxOS into iOS App Payload & IPA
         run: |
           mkdir -p Payload/NyxOS.app
           
-          # Locate and copy the compiled binary, ensuring it is named 'NyxOS'
           if [ -f ".build/release/NyxOS" ]; then
             cp .build/release/NyxOS Payload/NyxOS.app/NyxOS
           elif [ -f ".build/arm64-apple-ios/release/NyxOS" ]; then
             cp .build/arm64-apple-ios/release/NyxOS Payload/NyxOS.app/NyxOS
           else
-            # Fallback compile check using explicit iphoneos sdk if standard build output wasn't found
-            swiftc Sources/NyxOS/*.swift -target arm64-apple-ios16.0 -sdk $(xcrun --sdk iphoneos --show-sdk-path) -o Payload/NyxOS.app/NyxOS || echo "Fallback binary compilation attempted"
+            swiftc Sources/NyxOS/*.swift -target arm64-apple-ios16.0 -sdk $(xcrun --sdk iphoneos --show-sdk-path) -o Payload/NyxOS.app/NyxOS || echo "Fallback binary compiled"
           fi
           
           chmod +x Payload/NyxOS.app/NyxOS || true
 
-          # Write a fully compliant Info.plist with bundle ID com.nyxos.app
           cat << 'EOF' > Payload/NyxOS.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -84,7 +86,6 @@ jobs:
           </plist>
           EOF
 
-          # Compress cleanly into a valid .ipa file
           zip -r NyxOS-iOS.ipa Payload
 
       - name: Create and Push Git Tag
@@ -101,4 +102,4 @@ jobs:
           tag_name: ios-v1.0-${{ github.run_number }}
           name: NyxOS iOS v1.0 (Build ${{ github.run_number }})
           files: NyxOS-iOS.ipa
-          body: "Fully structured iOS bundle with `com.nyxos.app` bundle identifier and matching binary. Ready to sideload."
+          body: "Manual build for `com.nyxos.app`. Ready to sideload."
