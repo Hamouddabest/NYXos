@@ -31,7 +31,6 @@ jobs:
 
       - name: Generate Android Project Structure & Compile APK
         run: |
-          # Create standard Android project directory layout
           mkdir -p app/src/main/java/com/nyxos/app
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/assets
@@ -43,7 +42,6 @@ jobs:
               <uses-permission android:name="android.permission.INTERNET" />
               <application
                   android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
                   android:label="NyxOS"
                   android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
                   <activity
@@ -58,7 +56,7 @@ jobs:
           </manifest>
           EOF
 
-          # 2. Create MainActivity.java to load the UI cleanly without crashing
+          # 2. Create MainActivity.java
           cat << 'EOF' > app/src/main/java/com/nyxos/app/MainActivity.java
           package com.nyxos.app;
 
@@ -81,14 +79,14 @@ jobs:
           }
           EOF
 
-          # 3. Bring in your index.html web UI as the core app interface asset
+          # 3. Bring in index.html asset
           if [ -f "index.html" ]; then
             cp index.html app/src/main/assets/index.html
           else
             echo "<h1 style='color:white;background:#0d0d0f;text-align:center;padding-top:40vh;'>NyxOS Android Loader</h1>" > app/src/main/assets/index.html
           fi
 
-          # 4. Create build.gradle configuration for the app module
+          # 4. Create app/build.gradle
           cat << 'EOF' > app/build.gradle
           plugins {
               id 'com.android.application'
@@ -113,14 +111,29 @@ jobs:
           }
           EOF
 
-          # 5. Create project-level build files & gradle settings
+          # 5. Create root build.gradle
           cat << 'EOF' > build.gradle
           plugins {
               id 'com.android.application' version '8.2.0' apply false
           }
           EOF
 
+          # 6. Create settings.gradle with explicit Google/Maven repository resolution
           cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
           rootProject.name = "NyxOS"
           include ':app'
           EOF
@@ -128,11 +141,9 @@ jobs:
           echo "distributionBase=GRADLE_USER_HOME" > gradle.properties
           echo "android.useAndroidX=true" >> gradle.properties
 
-          # Download Gradle wrapper files to compile automatically
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
 
-          # Build the debug APK
           ./gradlew assembleDebug --no-daemon
 
       - name: Create and Push Fresh Git Tag
@@ -149,4 +160,4 @@ jobs:
           tag_name: nyxos-android-latest
           name: NyxOS Android (Latest Build)
           files: app/build/outputs/apk/debug/app-debug.apk
-          body: "Fully compiled native APK for `com.nyxos.app` with embedded web simulator interface."
+          body: "Fully compiled native APK for `com.nyxos.app` with resolved repositories."
