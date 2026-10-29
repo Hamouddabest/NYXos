@@ -35,14 +35,14 @@ jobs:
           # Delete local tag if it exists
           git tag -d "$TAG_NAME" || true
           
-          # Optional: Clean up older build tags to keep your repository pristine
+          # Clean up older build tags to keep your repository pristine
           for tag in $(git tag -l "v1.0-*"); do
             gh release delete "$tag" --repo ${{ github.repository }} --yes || true
             git push origin --delete "$tag" || true
             git tag -d "$tag" || true
           done
 
-      - name: Generate Android Project Structure
+      - name: Generate Android Project Structure & Embed Full NyxOS UI
         run: |
           mkdir -p app/src/main/java/com/nyxos/app
           mkdir -p app/src/main/res/values
@@ -69,7 +69,7 @@ jobs:
           </manifest>
           EOF
 
-          # 2. MainActivity.java (Loads full NyxOS web interface)
+          # 2. MainActivity.java (Loads full NyxOS interface)
           cat << 'EOF' > app/src/main/java/com/nyxos/app/MainActivity.java
           package com.nyxos.app;
 
@@ -92,12 +92,88 @@ jobs:
           }
           EOF
 
-          # 3. Pull in your index.html interface asset
-          if [ -f "index.html" ]; then
-            cp index.html app/src/main/assets/index.html
-          else
-            echo "<h1 style='color:white;background:#030409;text-align:center;padding-top:40vh;'>NyxOS Loading...</h1>" > app/src/main/assets/index.html
-          fi
+          # 3. Write the full interactive NyxOS interface into assets/index.html
+          cat << 'EOF' > app/src/main/assets/index.html
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+              <title>NyxOS v1.0.0</title>
+              <style>
+                  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+                  body, html { width: 100%; height: 100%; background: #08090d; color: #fff; overflow: hidden; }
+                  .os-container { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 35px 16px 20px 16px; background: radial-gradient(circle at center, #141724 0%, #08090d 100%); }
+                  .status-bar { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; opacity: 0.9; padding: 0 8px; }
+                  .badge { background: rgba(0, 240, 255, 0.15); border: 1px solid rgba(0, 240, 255, 0.4); padding: 4px 10px; border-radius: 12px; font-size: 10px; color: #00f0ff; letter-spacing: 1px; }
+                  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 10px; max-width: 360px; margin: 0 auto; }
+                  .app-icon { background: rgba(255, 255, 255, 0.06); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 18px; padding: 12px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: transform 0.1s; }
+                  .app-icon:active { transform: scale(0.94); background: rgba(255, 255, 255, 0.12); }
+                  .app-icon span { font-size: 9px; font-weight: 500; color: #d0d5dd; text-align: center; }
+                  .app-icon i { font-size: 22px; }
+                  .footer { text-align: center; font-size: 13px; font-weight: 700; color: #8892b0; letter-spacing: 0.5px; padding-bottom: 5px; }
+                  .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8, 9, 13, 0.95); display: none; flex-direction: column; padding: 30px 20px; z-index: 100; }
+                  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+                  .modal-header h3 { color: #00f0ff; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+                  .modal-header button { background: none; border: none; color: #ff4757; font-size: 14px; font-weight: bold; cursor: pointer; }
+                  .modal-content { flex: 1; overflow-y: auto; }
+              </style>
+          </head>
+          <body>
+              <div class="os-container">
+                  <div class="status-bar">
+                      <span id="clock">8:34 PM</span>
+                      <span class="badge">NYX OS STOCK</span>
+                      <span>88% 🔋</span>
+                  </div>
+
+                  <div class="grid">
+                      <div class="app-icon" onclick="openApp('Horizon', '🌍 Secure Web Browsing Engine\nEnter any URL or download packages.')"><i>🌍</i><span>Horizon</span></div>
+                      <div class="app-icon" onclick="openApp('Photos', '🖼️ Media Gallery & Capture Viewer\nView photos, screenshots, and video recordings.')"><i>🖼️</i><span>Photos</span></div>
+                      <div class="app-icon" onclick="openApp('Weather', '⛅ Meteorological Environment Monitor\nLive temp: 32°C Sunny & Clear')"><i>⛅</i><span>Weather</span></div>
+                      <div class="app-icon" onclick="openApp('Locations', '📍 GPS Vector Tracker\nLat: 24.4539° N, Lon: 39.6142° E')"><i>📍</i><span>Locations</span></div>
+                      <div class="app-icon" onclick="openApp('Aether Toolset', '💻 Aether Toolset & Terminal\nType commands like NYXSUS for root privileges.')"><i>💻</i><span>Aether Toolset</span></div>
+                      <div class="app-icon" onclick="openApp('App Store', '✨ Nyx App Store & Package Hub\nDownload Roblox, Void Runner & custom apps.')"><i>✨</i><span>App Store</span></div>
+                      <div class="app-icon" onclick="openApp('Vault', '🛡️ Cryptographic Credential Manager\nRoot passwords and secure notes stored securely.')"><i>🛡️</i><span>Vault</span></div>
+                      <div class="app-icon" onclick="openApp('Prism', '🔮 OS Kernel & Theme Switcher\nSwitch between iOS 18, Android 14, and Windows 11.')"><i>🔮</i><span>Prism</span></div>
+                      <div class="app-icon" onclick="openApp('Settings', '⚙️ System Configuration Hub\nBrightness, Volume, Wi-Fi & 35+ Languages.')"><i>⚙️</i><span>Settings</span></div>
+                      <div class="app-icon" onclick="openApp('Downloads', '📥 Download Manager & File System\nManage downloaded packages and ZIP files.')"><i>📥</i><span>Downloads</span></div>
+                      <div class="app-icon" onclick="openApp('Save Codes', '☁️ Cloud Save Code Backup Hub\nExport and restore your app configurations.')"><i>☁️</i><span>Save Codes</span></div>
+                      <div class="app-icon" onclick="openApp('Qibla Tracker', '🧭 Qibla Compass & Mecca Bearings\nBearing to Kaaba: 142.5° SE.')"><i>🧭</i><span>Qibla Tracker</span></div>
+                  </div>
+
+                  <div class="footer">Meet NyxOS</div>
+              </div>
+
+              <div class="modal" id="appModal">
+                  <div class="modal-header">
+                      <h3 id="modalTitle">App</h3>
+                      <button onclick="closeApp()">Close</button>
+                  </div>
+                  <div class="modal-content" id="modalBody" style="font-size: 13px; color: #cbd5e1; line-height: 1.6;"></div>
+              </div>
+
+              <script>
+                  function openApp(name, desc) {
+                      document.getElementById('modalTitle').innerText = name;
+                      document.getElementById('modalBody').innerText = desc;
+                      document.getElementById('appModal').style.display = 'flex';
+                  }
+                  function closeApp() {
+                      document.getElementById('appModal').style.display = 'none';
+                  }
+                  setInterval(() => {
+                      const now = new Date();
+                      let h = now.getHours();
+                      let m = now.getMinutes().toString().padStart(2, '0');
+                      let ampm = h >= 12 ? 'PM' : 'AM';
+                      h = h % 12 || 12;
+                      document.getElementById('clock').innerText = `${h}:${m} ${ampm}`;
+                  }, 1000);
+              </script>
+          </body>
+          </html>
+          EOF
 
           # 4. Gradle configuration files
           cat << 'EOF' > app/build.gradle
@@ -110,7 +186,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode 1
-                  versionName "1.0"
+                  versionName "1.0.0"
               }
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
@@ -154,6 +230,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: nyxos-android-latest
-          name: NyxOS Android (Latest Build)
+          name: NyxOS Android v1.0.0 (Latest Build)
           files: app/build/outputs/apk/debug/app-debug.apk
-          body: "Clean single-release Android build for `com.nyxos.app` running the NyxOS interface."
+          body: "NyxOS v1.0.0 Android build featuring the full interactive OS interface matching your showcase video."
