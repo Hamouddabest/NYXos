@@ -1,12 +1,12 @@
-name: Build Android APK
+name: Build NyxOS Android APK from SwiftUI
 
 on:
   workflow_dispatch:
 
 jobs:
   build-apk:
-    name: Instant Android Build & Sign
-    runs-on: ubuntu-latest
+    name: Cross-Compile SwiftUI to Native Android APK
+    runs-on: macos-14
     permissions:
       contents: write
 
@@ -14,13 +14,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up Java 17 & Android SDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Clean Up Existing Release & Tags
+      - name: Install Skip (SwiftUI to Kotlin/Android Transpiler)
+        run: |
+          brew install skiptools/skip/skip
+          skip check
+
+      - name: Clean Up Previous Release & Tags
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -29,213 +34,24 @@ jobs:
           git push origin --delete "$TAG_NAME" || true
           git tag -d "$TAG_NAME" || true
 
-      - name: Build NyxOS App Package
+      - name: Transpile SwiftUI and Build Android Debug APK
         run: |
-          mkdir -p app/src/main/java/com/nyxos/app
-          mkdir -p app/src/main/assets
+          # Build Android target using Skip / Gradle
+          skip gradle assembleDebug
 
-          # 1. AndroidManifest.xml
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.nyxos.app">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <application
-                  android:allowBackup="true"
-                  android:label="NyxOS"
-                  android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
+      - name: Locate and Stage Compiled APK
+        run: |
+          mkdir -p output
+          FOUND_APK=$(find . -name "*debug*.apk" -type f | head -n 1)
+          if [ -n "$FOUND_APK" ]; then
+            cp "$FOUND_APK" output/NyxOS-Android.apk
+            echo "Successfully packaged: output/NyxOS-Android.apk"
+          else
+            echo "Error: APK build failed to output binary."
+            exit 1
+          fi
 
-          # 2. MainActivity.java
-          cat << 'EOF' > app/src/main/java/com/nyxos/app/MainActivity.java
-          package com.nyxos.app;
-
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-
-          public class MainActivity extends Activity {
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  WebView webView = new WebView(this);
-                  WebSettings webSettings = webView.getSettings();
-                  webSettings.setJavaScriptEnabled(true);
-                  webSettings.setDomStorageEnabled(true);
-                  webView.loadUrl("file:///android_asset/index.html");
-                  setContentView(webView);
-              }
-          }
-          EOF
-
-          # 3. Write exact NyxOS Authentication & Boot Interface into assets/index.html
-          cat << 'EOF' > app/src/main/assets/index.html
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-              <title>NyxOS</title>
-              <style>
-                  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-                  body, html { width: 100%; height: 100%; background: #08090d; color: #fff; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-                  
-                  .auth-card {
-                      width: 90%;
-                      max-width: 380px;
-                      background: #0f111a;
-                      border: 1px solid #1a2035;
-                      border-radius: 24px;
-                      padding: 32px 24px;
-                      box-shadow: 0 0 40px rgba(0, 180, 255, 0.15);
-                      text-align: center;
-                  }
-
-                  .logo-icon {
-                      width: 64px;
-                      height: 64px;
-                      margin: 0 auto 16px auto;
-                      background: linear-gradient(135deg, #1890ff, #00d2ff);
-                      border-radius: 18px;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      font-size: 32px;
-                      box-shadow: 0 0 25px rgba(0, 210, 255, 0.5);
-                  }
-
-                  h2 { font-size: 20px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
-                  p.subtitle { font-size: 11px; color: #606d8a; margin-bottom: 24px; }
-
-                  .input-group { margin-bottom: 12px; }
-                  input {
-                      width: 100%;
-                      padding: 14px 16px;
-                      background: #141724;
-                      border: 1px solid #20273d;
-                      border-radius: 12px;
-                      color: #fff;
-                      font-size: 13px;
-                      outline: none;
-                      transition: border-color 0.2s;
-                  }
-                  input:focus { border-color: #00d2ff; }
-
-                  .btn-primary {
-                      width: 100%;
-                      padding: 14px;
-                      background: #38c8ff;
-                      border: none;
-                      border-radius: 12px;
-                      color: #000;
-                      font-size: 13px;
-                      font-weight: 700;
-                      cursor: pointer;
-                      margin-top: 8px;
-                      box-shadow: 0 0 15px rgba(56, 200, 255, 0.4);
-                  }
-
-                  .divider { font-size: 10px; color: #404b66; margin: 20px 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px; }
-
-                  .auth-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-                  .btn-social {
-                      padding: 10px;
-                      border-radius: 10px;
-                      border: none;
-                      font-size: 11px;
-                      font-weight: 600;
-                      cursor: pointer;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      gap: 6px;
-                  }
-                  .btn-discord { background: #5865F2; color: #fff; }
-                  .btn-google { background: #ffffff; color: #000; }
-              </style>
-          </head>
-          <body>
-
-              <div class="auth-card">
-                  <div class="logo-icon">✦</div>
-                  <h2>WELCOME TO NYXOS</h2>
-                  <p class="subtitle">Secure Authentication Gate</p>
-
-                  <div class="input-group">
-                      <input type="text" placeholder="Enter email / handle">
-                  </div>
-                  <div class="input-group">
-                      <input type="password" placeholder="Security Password">
-                  </div>
-
-                  <button class="btn-primary" onclick="alert('NyxOS Authenticated!')">Authenticate & Boot OS</button>
-
-                  <div class="divider">External App Authentication Handshake</div>
-
-                  <div class="auth-grid">
-                      <button class="btn-social btn-discord">🎮 Discord Auth</button>
-                      <button class="btn-social btn-google">🌐 Google Auth</button>
-                  </div>
-              </div>
-
-          </body>
-          </html>
-          EOF
-
-          # 4. Gradle Configs
-          cat << 'EOF' > app/build.gradle
-          plugins { id 'com.android.application' }
-          android {
-              namespace 'com.nyxos.app'
-              compileSdk 34
-              defaultConfig {
-                  applicationId "com.nyxos.app"
-                  minSdk 24
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-          }
-          EOF
-
-          cat << 'EOF' > build.gradle
-          plugins { id 'com.android.application' version '8.2.0' apply false }
-          EOF
-
-          cat << 'EOF' > settings.gradle
-          pluginManagement {
-              repositories { google(); mavenCentral(); gradlePluginPortal() }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories { google(); mavenCentral() }
-          }
-          rootProject.name = "NyxOS"
-          include ':app'
-          EOF
-
-          echo "distributionBase=GRADLE_USER_HOME" > gradle.properties
-          echo "android.useAndroidX=true" >> gradle.properties
-
-          gradle wrapper --gradle-version 8.5
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-
-      - name: Create and Push Tag
+      - name: Create Fresh Git Tag
         run: |
           TAG_NAME="nyxos-android-latest"
           git config user.name "github-actions[bot]"
@@ -243,10 +59,10 @@ jobs:
           git tag $TAG_NAME
           git push origin $TAG_NAME
 
-      - name: Upload APK Release
+      - name: Upload Native NyxOS APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: nyxos-android-latest
-          name: NyxOS Android (Latest Build)
-          files: app/build/outputs/apk/debug/app-debug.apk
-          body: "NyxOS Android APK built with matching Welcome to NyxOS Auth UI."
+          name: NyxOS Android (Native SwiftUI Build)
+          files: output/NyxOS-Android.apk
+          body: "Direct native Android APK transpiled from NyxOS SwiftUI source code."
