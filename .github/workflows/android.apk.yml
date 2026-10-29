@@ -30,17 +30,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="nyxos-android-latest"
-          
-          # Delete target release if present
           gh release delete "$TAG_NAME" --repo ${{ github.repository }} --yes || true
-          
-          # Delete remote tag if present
           git push origin --delete "$TAG_NAME" || true
-          
-          # Delete local tag if present
           git tag -d "$TAG_NAME" || true
           
-          # Wipe all older build version tags (v1.0-*)
           for tag in $(git tag -l "v1.0-*"); do
             gh release delete "$tag" --repo ${{ github.repository }} --yes || true
             git push origin --delete "$tag" || true
@@ -316,7 +309,7 @@ jobs:
           struct PhotoMediaItem: Identifiable {
               let id = UUID()
               let name: String
-              let type: String // "Photo", "Screenshot", "Recording"
+              let type: String
               let date: Date
               var image: UIImage? = nil
           }
@@ -557,14 +550,13 @@ jobs:
               func toggleScreenRecording() {
                   if isRecordingScreen {
                       isRecordingScreen = false
-                      
                       let capturedImage: UIImage? = {
                           guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                                 let window = scene.windows.first else { return nil }
-                      let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
-                      return renderer.image { _ in
-                          window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-                      }
+                          let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
+                          return renderer.image { _ in
+                              window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                          }
                       }()
                       
                       let recName = "Screen Rec \(Date().formatted(date: .omitted, time: .standard))"
@@ -689,7 +681,6 @@ jobs:
                                   Button(action: { audioEngine.playClickHaptic(); viewModel.volumeLevel = min(1.0, viewModel.volumeLevel + 0.1) }) {
                                       RoundedRectangle(cornerRadius: 2).fill(Color.gray.opacity(0.6)).frame(width: 35, height: 4)
                                   }
-                                  
                                   Button(action: {
                                       audioEngine.playShutterSound()
                                       viewModel.takeScreenshot()
@@ -707,7 +698,6 @@ jobs:
                                           RoundedRectangle(cornerRadius: 36)
                                               .stroke(viewModel.systemAccentColor.opacity(0.5), lineWidth: 2)
                                       )
-                                  
                                   phoneContentLayer
                               }
                               .frame(width: 600, height: 360)
@@ -725,7 +715,6 @@ jobs:
                                   Button(action: { audioEngine.playClickHaptic(); viewModel.volumeLevel = min(1.0, viewModel.volumeLevel + 0.1) }) {
                                       RoundedRectangle(cornerRadius: 2).fill(Color.gray.opacity(0.6)).frame(width: 4, height: 35)
                                   }
-                                  
                                   Button(action: {
                                       audioEngine.playShutterSound()
                                       viewModel.takeScreenshot()
@@ -743,7 +732,6 @@ jobs:
                                           RoundedRectangle(cornerRadius: 36)
                                               .stroke(viewModel.systemAccentColor.opacity(0.5), lineWidth: 2)
                                       )
-                                  
                                   phoneContentLayer
                               }
                               .frame(width: 360, height: 600)
@@ -924,7 +912,6 @@ jobs:
                   ZStack {
                       VStack(spacing: 16) {
                           Spacer()
-                          
                           Image(systemName: "sparkles.rectangle.stack.fill")
                               .font(.system(size: 50))
                               .foregroundColor(viewModel.systemAccentColor)
@@ -1110,28 +1097,6 @@ jobs:
                                       let code = String(format: "%06d", Int.random(in: 100000..<1000000))
                                       self.generatedSecureCode = code
                                       self.showEmailVerificationPopup = true
-                                      
-                                      let resendApiKey = "re_R7YS4B2T_3n9Ly4xKGvB8eqeEC68hw9eu"
-                                      guard let url = URL(string: "https://api.resend.com/emails") else { return }
-                                      var request = URLRequest(url: url)
-                                      request.httpMethod = "POST"
-                                      request.setValue("Bearer \(resendApiKey)", forHTTPHeaderField: "Authorization")
-                                      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                                      
-                                      let body: [String: Any] = [
-                                          "from": "NyxOS Verification <onboarding@resend.dev>",
-                                          "to": [accountName],
-                                          "subject": "Your NyxOS Verification Code",
-                                          "html": "<div style='font-family:sans-serif;padding:20px;background:#0b0e14;color:#fff;'><h2>NyxOS Code: <span style='color:#00f0ff;'>\(code)</span></h2></div>"
-                                      ]
-                                      
-                                      request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-                                      
-                                      URLSession.shared.dataTask(with: request) { data, response, error in
-                                          if let error = error {
-                                              print("[DIRECT RESEND ERROR]", error.localizedDescription)
-                                          }
-                                      }.resume()
                                   }
                               })
                               .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1282,7 +1247,6 @@ jobs:
                       timer?.invalidate()
                       timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak webView] _ in
                           guard let wv = webView else { return }
-                          
                           let script = """
                           (function() {
                               let emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/;
@@ -1296,14 +1260,11 @@ jobs:
                               for (let el of elements) {
                                   let txt = (el.innerText || el.value || '');
                                   let match = txt.match(emailRegex);
-                                  if (match) {
-                                      return match[0];
-                                  }
+                                  if (match) { return match[0]; }
                               }
                               return "";
                           })();
                           """
-                          
                           wv.evaluateJavaScript(script) { res, _ in
                               if let account = res as? String, !account.isEmpty {
                                   self.timer?.invalidate()
@@ -1322,7 +1283,6 @@ jobs:
               var body: some View {
                   VStack(spacing: 16) {
                       Spacer().frame(height: 15)
-                      
                       let standardApps = NyxApp.allCases.filter { $0 != .nyxManager && $0 != .nyxSign }
                       let currentApp = standardApps[min(viewModel.onboardingAppIndex, standardApps.count - 1)]
                       let info = currentApp.onboardingInfo
@@ -1391,9 +1351,7 @@ jobs:
                               if viewModel.onboardingAppIndex < standardApps.count - 1 {
                                   viewModel.onboardingAppIndex += 1
                               } else {
-                                  withAnimation {
-                                      viewModel.showAppByAppOnboarding = false
-                                  }
+                                  withAnimation { viewModel.showAppByAppOnboarding = false }
                               }
                           }
                           .font(.system(size: 9, weight: .bold))
@@ -1632,7 +1590,6 @@ jobs:
                           TabView {
                               ForEach(0..<max(1, pages.count), id: \.self) { pageIndex in
                                   let pageApps = pages.indices.contains(pageIndex) ? pages[pageIndex] : []
-                                  
                                   LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: columnCount), spacing: 14) {
                                       ForEach(pageApps) { appItem in
                                           renderAppIcon(item: appItem)
@@ -1689,9 +1646,7 @@ jobs:
                               .foregroundColor(.red)
                               .clipShape(RoundedRectangle(cornerRadius: 8))
                               
-                              Button("Cancel") {
-                                  activeContextMenuApp = nil
-                              }
+                              Button("Cancel") { activeContextMenuApp = nil }
                               .font(.system(size: 9))
                               .foregroundColor(.gray)
                               .padding(.top, 4)
@@ -1721,7 +1676,6 @@ jobs:
               
               private func getVisibleApps() -> [HomeAppIdentifier] {
                   var items: [HomeAppIdentifier] = []
-                  
                   for app in orderedApps {
                       let localizedName = viewModel.currentLanguage.localizedAppName(app)
                       let matchesSearch = viewModel.searchFilterText.isEmpty || localizedName.localizedCaseInsensitiveContains(viewModel.searchFilterText)
@@ -1761,7 +1715,6 @@ jobs:
                           items.append(HomeAppIdentifier(type: .store(storeApp), rawKey: storeApp.name))
                       }
                   }
-                  
                   return items
               }
               
@@ -2034,9 +1987,7 @@ jobs:
                                   ScrollView(.horizontal, showsIndicators: false) {
                                       HStack(spacing: 4) {
                                           ForEach(openWindows) { win in
-                                              Button(action: {
-                                                  audioEngine.playClickHaptic()
-                                              }) {
+                                              Button(action: { audioEngine.playClickHaptic() }) {
                                                   HStack(spacing: 4) {
                                                       Image(systemName: win.app.defaultIcon).font(.system(size: 8)).foregroundColor(win.app.accentColor)
                                                       Text(win.app.rawValue).font(.system(size: 7, weight: .bold)).foregroundColor(.white)
@@ -2055,11 +2006,9 @@ jobs:
                                       Button(action: { audioEngine.playClickHaptic(); showVirtualKeyboard.toggle() }) {
                                           Image(systemName: "keyboard").font(.system(size: 12)).foregroundColor(showVirtualKeyboard ? Color.cyan : Color.white)
                                       }
-                                      
                                       Text(Date(), style: .time)
                                           .font(.system(size: 8, weight: .bold, design: .monospaced))
                                           .foregroundColor(.white)
-                                      
                                       Button(action: {
                                           audioEngine.playClickHaptic()
                                           viewModel.isDesktopModeActive = false
@@ -2146,9 +2095,7 @@ jobs:
                                   .font(.system(size: 8, weight: .bold, design: .monospaced))
                                   .foregroundColor(.white)
                           }
-                          
                           Spacer()
-                          
                           Button(action: {
                               audioEngine.playClickHaptic()
                               simulateMouseClick(at: mousePosition)
@@ -2186,9 +2133,7 @@ jobs:
                                       y: min(max(20, mousePosition.y + deltaY), maxY)
                                   )
                               }
-                              .onEnded { _ in
-                                  lastDragLocation = .zero
-                              }
+                              .onEnded { _ in lastDragLocation = .zero }
                       )
                   }
               }
@@ -2771,13 +2716,9 @@ jobs:
                           
                           ForEach(OperatingSystemMode.allCases) { mode in
                               let isAllowed: Bool = {
-                                  if mode == .ios18 {
-                                      return viewModel.isJailbroken
-                                  } else if mode == .nyx || mode == .linux || mode == .windows || mode == .off {
-                                      return true
-                                  } else {
-                                      return viewModel.isJailbroken && isExpanderEnabled
-                                  }
+                                  if mode == .ios18 { return viewModel.isJailbroken }
+                                  else if mode == .nyx || mode == .linux || mode == .windows || mode == .off { return true }
+                                  else { return viewModel.isJailbroken && isExpanderEnabled }
                               }()
                               
                               if isAllowed {
@@ -2900,9 +2841,7 @@ jobs:
                   return wv
               }
               func updateUIView(_ uiView: WKWebView, context: Context) {
-                  if uiView.url != url {
-                      uiView.load(URLRequest(url: url))
-                  }
+                  if uiView.url != url { uiView.load(URLRequest(url: url)) }
               }
           }
 
@@ -2981,7 +2920,6 @@ jobs:
                           if !generatedCode.isEmpty {
                               Text(generatedCode).font(.system(size: 8, design: .monospaced)).foregroundColor(.cyan)
                           }
-                          
                           Spacer()
                       }
                       .padding(.top, 10)
@@ -3019,7 +2957,6 @@ jobs:
               let game: SideloaderGame
               @ObservedObject var viewModel: NyxOSViewModel
               @ObservedObject var audioEngine: NyxAudioEngine
-              
               var body: some View {
                   VStack {
                       Text(game.title).font(.system(size: 10, weight: .bold)).foregroundColor(Color.red)
@@ -3052,8 +2989,7 @@ jobs:
                                       Text("Import")
                                   }
                                   .font(.system(size: 8, weight: .bold))
-                                  .padding(.horizontal, 10)
-                                  .padding(.vertical, 4)
+                                  .padding(.horizontal, 10).padding(.vertical, 4)
                                   .background(Color.pink)
                                   .foregroundColor(.white)
                                   .clipShape(Capsule())
@@ -3092,9 +3028,7 @@ jobs:
                                                               VStack {
                                                                   Spacer()
                                                                   HStack {
-                                                                      Image(systemName: "play.circle.fill")
-                                                                          .font(.system(size: 18))
-                                                                          .foregroundColor(.white)
+                                                                      Image(systemName: "play.circle.fill").font(.system(size: 18)).foregroundColor(.white)
                                                                       Spacer()
                                                                       Text("Video")
                                                                           .font(.system(size: 7, weight: .bold, design: .monospaced))
@@ -3114,10 +3048,7 @@ jobs:
                                                   audioEngine.playClickHaptic()
                                                   viewModel.deletePhoto(id: item.id)
                                               }) {
-                                                  Image(systemName: "trash.circle.fill")
-                                                      .font(.system(size: 14))
-                                                      .foregroundColor(.red)
-                                                      .padding(4)
+                                                  Image(systemName: "trash.circle.fill").font(.system(size: 14)).foregroundColor(.red).padding(4)
                                               }
                                           }
                                           .onTapGesture {
@@ -3168,8 +3099,7 @@ jobs:
                                               }
                                           } else {
                                               Image(systemName: photo.type == "Recording" ? "video.fill" : "photo.fill")
-                                                  .font(.system(size: 70))
-                                                  .foregroundColor(.pink)
+                                                  .font(.system(size: 70)).foregroundColor(.pink)
                                           }
                                           
                                           if photo.type == "Recording" && !isPlayingRecording {
@@ -3251,24 +3181,15 @@ jobs:
               
               func updateUIViewController(_ uiView: PHPickerViewController, context: Context) {}
               
-              func makeCoordinator() -> Coordinator {
-                  Coordinator(self)
-              }
+              func makeCoordinator() -> Coordinator { Coordinator(self) }
               
               class Coordinator: NSObject, PHPickerViewControllerDelegate {
                   let parent: NativeImagePickerRepresentable
-                  
-                  init(_ parent: NativeImagePickerRepresentable) {
-                      self.parent = parent
-                  }
+                  init(_ parent: NativeImagePickerRepresentable) { self.parent = parent }
                   
                   func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
                       picker.dismiss(animated: true)
-                      
-                      guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else {
-                          return
-                      }
-                      
+                      guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else { return }
                       provider.loadObject(ofClass: UIImage.self) { image, error in
                           if let uiImage = image as? UIImage {
                               DispatchQueue.main.async {
@@ -3332,9 +3253,7 @@ jobs:
                           
                           Button(action: {
                               audioEngine.playClickHaptic()
-                              withAnimation {
-                                  viewModel.isLandscape.toggle()
-                              }
+                              withAnimation { viewModel.isLandscape.toggle() }
                           }) {
                               VStack(spacing: 4) {
                                   Image(systemName: viewModel.isLandscape ? "rectangle.landscape.rotate" : "rectangle.portrait.rotate").font(.system(size: 16))
@@ -3408,8 +3327,7 @@ jobs:
                                   Spacer()
                                   Text("\(Int(viewModel.screenBrightness * 100))%").font(.system(size: 9)).foregroundColor(.gray)
                               }
-                              Slider(value: $viewModel.screenBrightness, in: 0.2...1.0)
-                                  .accentColor(viewModel.systemAccentColor)
+                              Slider(value: $viewModel.screenBrightness, in: 0.2...1.0).accentColor(viewModel.systemAccentColor)
                           }
                           .padding(10)
                           .background(getBackgroundView(for: viewModel.osMode))
@@ -3423,8 +3341,7 @@ jobs:
                                   Spacer()
                                   Text("\(Int(viewModel.volumeLevel * 100))%").font(.system(size: 9)).foregroundColor(.gray)
                               }
-                              Slider(value: $viewModel.volumeLevel, in: 0.0...1.0)
-                                  .accentColor(viewModel.systemAccentColor)
+                              Slider(value: $viewModel.volumeLevel, in: 0.0...1.0).accentColor(viewModel.systemAccentColor)
                           }
                           .padding(10)
                           .background(getBackgroundView(for: viewModel.osMode))
@@ -3433,10 +3350,8 @@ jobs:
                           
                           Text("Connectivity & Bluetooth").font(.system(size: 9, weight: .bold)).foregroundColor(.gray)
                           VStack(alignment: .leading, spacing: 6) {
-                              Toggle("Wi-Fi Interface", isOn: $viewModel.wifiEnabled)
-                                  .font(.system(size: 9))
-                              Toggle("Bluetooth Hardware", isOn: $viewModel.bluetoothEnabled)
-                                  .font(.system(size: 9))
+                              Toggle("Wi-Fi Interface", isOn: $viewModel.wifiEnabled).font(.system(size: 9))
+                              Toggle("Bluetooth Hardware", isOn: $viewModel.bluetoothEnabled).font(.system(size: 9))
                               Text("Connected Audio: \(viewModel.connectedBluetoothDevice)").font(.system(size: 8)).foregroundColor(viewModel.systemAccentColor)
                           }
                           .padding(10)
@@ -3446,9 +3361,7 @@ jobs:
                           
                           Text("System Language (All World Languages)").font(.system(size: 9, weight: .bold)).foregroundColor(.gray)
                           Picker("Language", selection: $viewModel.currentLanguage) {
-                              ForEach(AppLanguage.allCases) { lang in
-                                  Text(lang.rawValue).tag(lang)
-                              }
+                              ForEach(AppLanguage.allCases) { lang in Text(lang.rawValue).tag(lang) }
                           }
                           .pickerStyle(MenuPickerStyle())
                       }
@@ -3496,10 +3409,41 @@ jobs:
           }
           EOF
 
+      - name: Initialize Skip Package & Gradle Workspace
+        run: |
+          # Initialize a valid Skip Swift package structure if missing
+          if [ ! -f "Package.swift" ]; then
+            cat << 'EOF' > Package.swift
+            // swift-tools-version: 5.9
+            import PackageDescription
+
+            let package = Package(
+                name: "NyxOS",
+                platforms: [.iOS(.v16)],
+                products: [
+                    .library(name: "NyxOS", targets: ["NyxOS"])
+                ],
+                dependencies: [
+                    .package(url: "https://github.com/skiptools/skip.git", from: "1.0.0")
+                ],
+                targets: [
+                    .target(
+                        name: "NyxOS",
+                        dependencies: [],
+                        resources: [.process("Resources")]
+                    )
+                ]
+            )
+            EOF
+          fi
+
+          # Ensure Skip builds/initializes Android Gradle files properly
+          skip init --name NyxOS || true
+
       - name: Build Android Debug APK with Skip
         run: |
           mkdir -p output
-          skip gradle assembleDebug || (gradlew assembleDebug || ./gradlew assembleDebug)
+          skip gradle assembleDebug || gradle assembleDebug || ./gradlew assembleDebug
           
           FOUND_APK=$(find . -name "*debug*.apk" -type f | head -n 1)
           if [ -n "$FOUND_APK" ]; then
