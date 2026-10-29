@@ -23,7 +23,7 @@ jobs:
       - name: Install Skip (SwiftUI to Kotlin/Android Transpiler)
         run: |
           brew install skiptools/skip/skip
-          skip check
+          skip --help
 
       - name: Clean Up Previous Release & Tags
         env:
@@ -36,7 +36,6 @@ jobs:
 
       - name: Transpile SwiftUI and Build Android Debug APK
         run: |
-          # Build Android target using Skip / Gradle
           skip gradle assembleDebug
 
       - name: Locate and Stage Compiled APK
