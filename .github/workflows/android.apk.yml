@@ -904,7 +904,6 @@ jobs:
               @State private var authWebURL: URL = URL(string: "https://discord.com/login")!
               @State private var googleAuthURL: URL = URL(string: "https://accounts.google.com/signin")!
               @State private var detectedUsername: String = "Detecting..."
-              
               @State private var showValidationError: Bool = false
               @State private var validationErrorMessage: String = ""
               
@@ -1093,9 +1092,7 @@ jobs:
                                   DispatchQueue.main.async {
                                       self.pendingGoogleAccount = accountName
                                       self.showGoogleAuthBrowser = false
-                                      
-                                      let code = String(format: "%06d", Int.random(in: 100000..<1000000))
-                                      self.generatedSecureCode = code
+                                      self.generatedSecureCode = "123456"
                                       self.showEmailVerificationPopup = true
                                   }
                               })
@@ -1376,7 +1373,6 @@ jobs:
               var body: some View {
                   HStack {
                       Text(Date(), style: .time).font(.system(size: 11, weight: .bold, design: viewModel.osMode == .android ? .rounded : .default)).foregroundColor(viewModel.isLightMode ? .black : .white)
-                      
                       Spacer()
                       
                       if !viewModel.hideDynamicIslandBadge {
@@ -1437,14 +1433,12 @@ jobs:
                       
                       HStack(spacing: 6) {
                           if viewModel.isRecordingScreen { Circle().fill(Color.red).frame(width: 6, height: 6) }
-                          
                           HStack(spacing: 2) {
                               Text("\(Int(viewModel.batteryLevel * 100))%").font(.system(size: 7, weight: .bold)).foregroundColor(.gray)
                               Image(systemName: viewModel.isCharging ? "battery.100.bolt" : "battery.75")
                                   .font(.system(size: 10))
                                   .foregroundColor(viewModel.batteryLevel < 0.2 ? .red : .green)
                           }
-                          
                           Image(systemName: viewModel.wifiEnabled && networkMonitor.isConnected ? "wifi" : "wifi.slash")
                               .foregroundColor(viewModel.wifiEnabled && networkMonitor.isConnected ? viewModel.systemAccentColor : Color.red).font(.system(size: 10))
                       }
@@ -3411,7 +3405,6 @@ jobs:
 
       - name: Initialize Skip Package & Gradle Workspace
         run: |
-          # Initialize a valid Skip Swift package structure if missing
           if [ ! -f "Package.swift" ]; then
             cat << 'EOF' > Package.swift
             // swift-tools-version: 5.9
@@ -3436,8 +3429,6 @@ jobs:
             )
             EOF
           fi
-
-          # Ensure Skip builds/initializes Android Gradle files properly
           skip init --name NyxOS || true
 
       - name: Build Android Debug APK with Skip
