@@ -1,0 +1,79 @@
+name: Build NyxOS IPA
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    name: Package and Generate IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify and Extract nyxos.zip
+        run: |
+          echo "Listing repository workspace contents:"
+          ls -la
+          
+          if [ -f "nyxos.zip" ]; then
+            echo "Found nyxos.zip in repository root. Extracting..."
+            mkdir -p extracted_nyx
+            unzip -q nyxos.zip -d extracted_nyx
+          else
+            echo "Error: nyxos.zip not found in repository root! Please ensure nyxos.zip is committed."
+            exit 1
+          fi
+
+      - name: Prepare Payload Directory Structure
+        run: |
+          mkdir -p Payload
+          mkdir -p Payload/NyxOS.app
+          
+          # Move extracted contents into the .app bundle wrapper container
+          cp -r extracted_nyx/* Payload/NyxOS.app/
+          
+          # Ensure Info.plist is present and matches the bundle ID
+          if [ ! -f "Payload/NyxOS.app/Info.plist" ]; then
+            echo "Generating default Info.plist..."
+            cat << 'EOF' > Payload/NyxOS.app/Info.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.nyxos.mobileapp</string>
+    <key>CFBundleName</key>
+    <string>NyxOS</string>
+    <key>CFBundleVersion</key>
+    <string>18.4.2</string>
+    <key>CFBundleShortVersionString</key>
+    <string>18.4.2</string>
+    <key>MinimumOSVersion</key>
+    <string>15.0</string>
+    <key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer>
+        <integer>2</integer>
+    </array>
+</dict>
+</plist>
+EOF
+          fi
+          
+          echo "Payload bundle verified successfully:"
+          ls -la Payload/NyxOS.app/
+
+      - name: Compress into .ipa Archive
+        run: |
+          zip -r NyxOS.ipa Payload
+          echo "Successfully generated NyxOS.ipa"
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NyxOS-Release-IPA
+          path: NyxOS.ipa
