@@ -1,91 +1,79 @@
-name: Build iOS IPA
+name: Build NyxOS IPA
 
 on:
+  push:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
   build-ipa:
-    name: Instant Linux Build & Sign
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    name: Package and Generate IPA
+    runs-on: macos-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Clean Up Existing Release & Tags
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify and Extract nyxos.zip
         run: |
-          TAG_NAME="nyxos-ios-latest"
-          gh release delete "$TAG_NAME" --repo ${{ github.repository }} --yes || true
-          git push origin --delete "$TAG_NAME" || true
-          git tag -d "$TAG_NAME" || true
+          echo "Listing repository workspace contents:"
+          ls -la
+          
+          if [ -f "nyxos.zip" ]; then
+            echo "Found nyxos.zip in repository root. Extracting..."
+            mkdir -p extracted_nyx
+            unzip -q nyxos.zip -d extracted_nyx
+          else
+            echo "Error: nyxos.zip not found in repository root! Please ensure nyxos.zip is committed."
+            exit 1
+          fi
 
-      - name: Install Zig & Compile Freestanding iOS Binary
+      - name: Prepare Payload Directory Structure
         run: |
-          sudo apt-get update
-          sudo apt-get install -y zig zip
-
+          mkdir -p Payload
           mkdir -p Payload/NyxOS.app
+          
+          # Move extracted contents into the .app bundle wrapper container
+          cp -r extracted_nyx/* Payload/NyxOS.app/
+          
+          # Ensure Info.plist is present and matches the bundle ID
+          if [ ! -f "Payload/NyxOS.app/Info.plist" ]; then
+            echo "Generating default Info.plist..."
+            cat << 'EOF' > Payload/NyxOS.app/Info.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.nyxos.mobileapp</string>
+    <key>CFBundleName</key>
+    <string>NyxOS</string>
+    <key>CFBundleVersion</key>
+    <string>18.4.2</string>
+    <key>CFBundleShortVersionString</key>
+    <string>18.4.2</string>
+    <key>MinimumOSVersion</key>
+    <string>15.0</string>
+    <key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer>
+        <integer>2</integer>
+    </array>
+</dict>
+</plist>
+EOF
+          fi
+          
+          echo "Payload bundle verified successfully:"
+          ls -la Payload/NyxOS.app/
 
-          echo 'int main() { return 0; }' > main.c
-
-          # Compile standalone freestanding binary for iOS without requiring libSystem
-          zig cc -target aarch64-ios -freestanding -nostdlib main.c -o Payload/NyxOS.app/NyxOS
-          chmod +x Payload/NyxOS.app/NyxOS
-
-          cat << 'EOF' > Payload/NyxOS.app/Info.plist
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleDevelopmentRegion</key>
-              <string>en</string>
-              <key>CFBundleExecutable</key>
-              <string>NyxOS</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.nyxos.app</string>
-              <key>CFBundleInfoDictionaryVersion</key>
-              <string>6.0</string>
-              <key>CFBundleName</key>
-              <string>NyxOS</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>1.0</string>
-              <key>CFBundleVersion</key>
-              <string>1</string>
-              <key>MinimumOSVersion</key>
-              <string>16.0</string>
-              <key>UIDeviceFamily</key>
-              <array>
-                  <integer>1</integer>
-                  <integer>2</integer>
-              </array>
-              <key>CFBundleSupportedPlatforms</key>
-              <array>
-                  <string>iPhoneOS</string>
-              </array>
-          </dict>
-          </plist>
-          EOF
-
-          zip -r NyxOS-iOS.ipa Payload
-
-      - name: Create and Push Fresh Git Tag
+      - name: Compress into .ipa Archive
         run: |
-          TAG_NAME="nyxos-ios-latest"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag $TAG_NAME
-          git push origin $TAG_NAME
+          zip -r NyxOS.ipa Payload
+          echo "Successfully generated NyxOS.ipa"
 
-      - name: Upload Clean IPA to GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: nyxos-ios-latest
-          name: NyxOS iOS (Latest Build)
-          files: NyxOS-iOS.ipa
-          body: "Stable sideloadable build for `com.nyxos.app` compiled via Zig freestanding."
+          name: NyxOS-Release-IPA
+          path: NyxOS.ipa
