@@ -19,11 +19,15 @@ jobs:
           echo "Checking workspace files..."
           ls -la
           
-          if [ -f "nyxos.zip" ]; then
+          # Find the zip file regardless of case (NYXos.zip, nyxos.zip, etc.)
+          ZIP_FILE=$(find . -maxdepth 1 -iname "nyxos.zip" | head -n 1)
+          
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Found zip file at: $ZIP_FILE. Extracting..."
             mkdir -p extracted_nyx
-            unzip -q nyxos.zip -d extracted_nyx
+            unzip -q "$ZIP_FILE" -d extracted_nyx
           else
-            echo "Error: nyxos.zip not found in repository root!"
+            echo "Error: nyxos.zip / NYXos.zip not found in repository root!"
             exit 1
           fi
 
