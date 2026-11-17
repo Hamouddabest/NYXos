@@ -1,4 +1,4 @@
-name: Build NyxOS IPA
+name: Compile and Build NyxOS IPA
 
 on:
   push:
@@ -6,55 +6,85 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-ipa:
-    name: Package NyxOS IPA
-    runs-on: ubuntu-latest
+  build-xcode-ipa:
+    name: Compile SwiftUI & Build IPA
+    runs-on: macos-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Extract and Structure App Bundle
+      - name: Set up Xcode
         run: |
-          echo "Checking workspace files..."
-          ls -la
-          
-          ZIP_FILE=$(find . -maxdepth 1 -iname "nyxos.zip" | head -n 1)
-          
-          if [ -n "$ZIP_FILE" ]; then
-            echo "Found zip file at: $ZIP_FILE. Extracting..."
-            mkdir -p extracted_nyx
-            unzip -q "$ZIP_FILE" -d extracted_nyx
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Build and Archive App
+        run: |
+          # If you have an Xcode workspace or project file (.xcodeproj / .xcworkspace), build it directly:
+          if [ -d "*.xcodeproj" ] || [ -d "*.xcworkspace" ]; then
+            PROJECT_FILE=$(ls -d *.xcworkspace *.xcodeproj | head -n 1)
+            SCHEME_NAME=$(basename "$PROJECT_FILE" | cut -f 1 -d '.')
+            
+            echo "Building project: $PROJECT_FILE with scheme: $SCHEME_NAME"
+            
+            xcodebuild -project "$PROJECT_FILE" \
+                       -scheme "$SCHEME_NAME" \
+                       -sdk iphoneos \
+                       -configuration Release \
+                       -derivedDataPathbuild \
+                       CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
           else
-            echo "Error: nyxos.zip / NYXos.zip not found in repository root!"
-            exit 1
+            echo "No Xcode project found. Compiling raw Swift source files into binary..."
+            mkdir -p Payload/NyxOS.app
+            
+            # Compile Swift files directly into a valid Mach-O executable
+            swiftc -target arm64-apple-ios15.0 -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
+                   -o Payload/NyxOS.app/NyxOS \
+                   *.swift || swiftc -target arm64-apple-ios15.0 -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
+                   -o Payload/NyxOS.app/NyxOS \
+                   NyxOSApp.swift
+                   
+            # Generate Info.plist
+            cat << 'EOF' > Payload/NyxOS.app/Info.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.nyxos.mobileapp</string>
+    <key>CFBundleName</key>
+    <string>NyxOS</string>
+    <key>CFBundleExecutable</key>
+    <string>NyxOS</string>
+    <key>CFBundleVersion</key>
+    <string>18.4.2</string>
+    <key>CFBundleShortVersionString</key>
+    <string>18.4.2</string>
+    <key>MinimumOSVersion</key>
+    <string>15.0</string>
+    <key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer>
+        <integer>2</integer>
+    </array>
+</dict>
+</plist>
+EOF
           fi
 
-          mkdir -p Payload/NyxOS.app
-          
-          # If zip already has .app structure, copy it; otherwise copy contents
-          if [ -d "extracted_nyx/NyxOS.app" ]; then
-            cp -r extracted_nyx/NyxOS.app/* Payload/NyxOS.app/
-          else
-            cp -r extracted_nyx/* Payload/NyxOS.app/
+          # If xcodebuild produced a .app product, move it to Payload structure
+          if [ -d "build/Build/Products/Release-iphoneos" ]; then
+            mkdir -p Payload
+            cp -r build/Build/Products/Release-iphoneos/*.app Payload/NyxOS.app
           fi
 
-          # Ensure Info.plist is present with correct executable name
-          if [ ! -f "Payload/NyxOS.app/Info.plist" ]; then
-            echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.nyxos.mobileapp</string><key>CFBundleName</key><string>NyxOS</string><key>CFBundleExecutable</key><string>NyxOS</string><key>CFBundleVersion</key><string>18.4.2</string><key>CFBundleShortVersionString</key><string>18.4.2</string><key>MinimumOSVersion</key><string>15.0</string><key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array></dict></plist>' > Payload/NyxOS.app/Info.plist
-          fi
-
-          # Ensure a dummy executable exists if none was present, to prevent bad file descriptor mapping errors
-          if [ ! -f "Payload/NyxOS.app/NyxOS" ]; then
-            echo '#!/bin/sh' > Payload/NyxOS.app/NyxOS
-            chmod +x Payload/NyxOS.app/NyxOS
-          fi
-
-          zip -qr NyxOS-Package.ipa Payload
-          echo "Successfully packaged NyxOS-Package.ipa"
+          # Compress into final .ipa
+          zip -qr NyxOS-Compiled.ipa Payload
+          echo "Successfully generated compiled NyxOS-Compiled.ipa"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NyxOS-Release-IPA
-          path: NyxOS-Package.ipa
+          path: NyxOS-Compiled.ipa
