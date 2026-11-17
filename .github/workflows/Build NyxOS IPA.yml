@@ -21,65 +21,33 @@ jobs:
 
       - name: Build and Archive App
         run: |
-          # If you have an Xcode workspace or project file (.xcodeproj / .xcworkspace), build it directly:
           if [ -d "*.xcodeproj" ] || [ -d "*.xcworkspace" ]; then
             PROJECT_FILE=$(ls -d *.xcworkspace *.xcodeproj | head -n 1)
             SCHEME_NAME=$(basename "$PROJECT_FILE" | cut -f 1 -d '.')
-            
-            echo "Building project: $PROJECT_FILE with scheme: $SCHEME_NAME"
             
             xcodebuild -project "$PROJECT_FILE" \
                        -scheme "$SCHEME_NAME" \
                        -sdk iphoneos \
                        -configuration Release \
-                       -derivedDataPathbuild \
+                       -derivedDataPath build \
                        CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
           else
-            echo "No Xcode project found. Compiling raw Swift source files into binary..."
             mkdir -p Payload/NyxOS.app
             
-            # Compile Swift files directly into a valid Mach-O executable
             swiftc -target arm64-apple-ios15.0 -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
                    -o Payload/NyxOS.app/NyxOS \
                    *.swift || swiftc -target arm64-apple-ios15.0 -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
                    -o Payload/NyxOS.app/NyxOS \
                    NyxOSApp.swift
                    
-            # Generate Info.plist
-            cat << 'EOF' > Payload/NyxOS.app/Info.plist
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleIdentifier</key>
-    <string>com.nyxos.mobileapp</string>
-    <key>CFBundleName</key>
-    <string>NyxOS</string>
-    <key>CFBundleExecutable</key>
-    <string>NyxOS</string>
-    <key>CFBundleVersion</key>
-    <string>18.4.2</string>
-    <key>CFBundleShortVersionString</key>
-    <string>18.4.2</string>
-    <key>MinimumOSVersion</key>
-    <string>15.0</string>
-    <key>UIDeviceFamily</key>
-    <array>
-        <integer>1</integer>
-        <integer>2</integer>
-    </array>
-</dict>
-</plist>
-EOF
+            printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n    <key>CFBundleIdentifier</key>\n    <string>com.nyxos.mobileapp</string>\n    <key>CFBundleName</key>\n    <string>NyxOS</string>\n    <key>CFBundleExecutable</key>\n    <string>NyxOS</string>\n    <key>CFBundleVersion</key>\n    <string>18.4.2</string>\n    <key>CFBundleShortVersionString</key>\n    <string>18.4.2</string>\n    <key>MinimumOSVersion</key>\n    <string>15.0</string>\n    <key>UIDeviceFamily</key>\n    <array>\n        <integer>1</integer>\n        <integer>2</integer>\n    </array>\n</dict>\n</plist>\n' > Payload/NyxOS.app/Info.plist
           fi
 
-          # If xcodebuild produced a .app product, move it to Payload structure
           if [ -d "build/Build/Products/Release-iphoneos" ]; then
             mkdir -p Payload
             cp -r build/Build/Products/Release-iphoneos/*.app Payload/NyxOS.app
           fi
 
-          # Compress into final .ipa
           zip -qr NyxOS-Compiled.ipa Payload
           echo "Successfully generated compiled NyxOS-Compiled.ipa"
 
