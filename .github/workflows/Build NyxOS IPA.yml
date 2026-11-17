@@ -1,4 +1,4 @@
-name: Compile and Build NyxOS IPA
+name: Build NyxOS IPA (Instant Linux)
 
 on:
   push:
@@ -6,53 +6,42 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-xcode-ipa:
-    name: Compile SwiftUI & Build IPA
-    runs-on: macos-latest
+  build-ipa:
+    name: Package NyxOS IPA
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Xcode
+      - name: Extract and Package App
         run: |
-          sudo xcode-select -s /Applications/Xcode.app
-          xcodebuild -version
-
-      - name: Build and Archive App
-        run: |
-          if [ -d "*.xcodeproj" ] || [ -d "*.xcworkspace" ]; then
-            PROJECT_FILE=$(ls -d *.xcworkspace *.xcodeproj | head -n 1)
-            SCHEME_NAME=$(basename "$PROJECT_FILE" | cut -f 1 -d '.')
-            
-            xcodebuild -project "$PROJECT_FILE" \
-                       -scheme "$SCHEME_NAME" \
-                       -sdk iphoneos \
-                       -configuration Release \
-                       -derivedDataPath build \
-                       CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          echo "Checking workspace files..."
+          ls -la
+          
+          ZIP_FILE=$(find . -maxdepth 1 -iname "nyxos.zip" -o -iname "NYXos.zip" | head -n 1)
+          
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Found zip file at: $ZIP_FILE. Extracting..."
+            mkdir -p extracted_nyx
+            unzip -q "$ZIP_FILE" -d extracted_nyx
           else
-            mkdir -p Payload/NyxOS.app
-            
-            swiftc -target arm64-apple-ios15.0 -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
-                   -o Payload/NyxOS.app/NyxOS \
-                   *.swift || swiftc -target arm64-apple-ios15.0 -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
-                   -o Payload/NyxOS.app/NyxOS \
-                   NyxOSApp.swift
-                   
+            echo "Error: nyxos.zip not found in repository root!"
+            exit 1
+          fi
+
+          mkdir -p Payload/NyxOS.app
+          cp -r extracted_nyx/* Payload/NyxOS.app/
+
+          if [ ! -f "Payload/NyxOS.app/Info.plist" ]; then
             printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n    <key>CFBundleIdentifier</key>\n    <string>com.nyxos.mobileapp</string>\n    <key>CFBundleName</key>\n    <string>NyxOS</string>\n    <key>CFBundleExecutable</key>\n    <string>NyxOS</string>\n    <key>CFBundleVersion</key>\n    <string>18.4.2</string>\n    <key>CFBundleShortVersionString</key>\n    <string>18.4.2</string>\n    <key>MinimumOSVersion</key>\n    <string>15.0</string>\n    <key>UIDeviceFamily</key>\n    <array>\n        <integer>1</integer>\n        <integer>2</integer>\n    </array>\n</dict>\n</plist>\n' > Payload/NyxOS.app/Info.plist
           fi
 
-          if [ -d "build/Build/Products/Release-iphoneos" ]; then
-            mkdir -p Payload
-            cp -r build/Build/Products/Release-iphoneos/*.app Payload/NyxOS.app
-          fi
-
-          zip -qr NyxOS-Compiled.ipa Payload
-          echo "Successfully generated compiled NyxOS-Compiled.ipa"
+          zip -qr NyxOS-Package.ipa Payload
+          echo "Successfully packaged NyxOS-Package.ipa"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NyxOS-Release-IPA
-          path: NyxOS-Compiled.ipa
+          path: NyxOS-Package.ipa
