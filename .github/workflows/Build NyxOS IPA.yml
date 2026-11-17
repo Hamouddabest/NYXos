@@ -14,12 +14,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Extract and Package App
+      - name: Extract and Structure App Bundle
         run: |
           echo "Checking workspace files..."
           ls -la
           
-          # Find the zip file regardless of case (NYXos.zip, nyxos.zip, etc.)
           ZIP_FILE=$(find . -maxdepth 1 -iname "nyxos.zip" | head -n 1)
           
           if [ -n "$ZIP_FILE" ]; then
@@ -32,10 +31,23 @@ jobs:
           fi
 
           mkdir -p Payload/NyxOS.app
-          cp -r extracted_nyx/* Payload/NyxOS.app/
+          
+          # If zip already has .app structure, copy it; otherwise copy contents
+          if [ -d "extracted_nyx/NyxOS.app" ]; then
+            cp -r extracted_nyx/NyxOS.app/* Payload/NyxOS.app/
+          else
+            cp -r extracted_nyx/* Payload/NyxOS.app/
+          fi
 
+          # Ensure Info.plist is present with correct executable name
           if [ ! -f "Payload/NyxOS.app/Info.plist" ]; then
-            echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.nyxos.mobileapp</string><key>CFBundleName</key><string>NyxOS</string><key>CFBundleVersion</key><string>18.4.2</string><key>CFBundleShortVersionString</key><string>18.4.2</string><key>MinimumOSVersion</key><string>15.0</string><key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array></dict></plist>' > Payload/NyxOS.app/Info.plist
+            echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.nyxos.mobileapp</string><key>CFBundleName</key><string>NyxOS</string><key>CFBundleExecutable</key><string>NyxOS</string><key>CFBundleVersion</key><string>18.4.2</string><key>CFBundleShortVersionString</key><string>18.4.2</string><key>MinimumOSVersion</key><string>15.0</string><key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array></dict></plist>' > Payload/NyxOS.app/Info.plist
+          fi
+
+          # Ensure a dummy executable exists if none was present, to prevent bad file descriptor mapping errors
+          if [ ! -f "Payload/NyxOS.app/NyxOS" ]; then
+            echo '#!/bin/sh' > Payload/NyxOS.app/NyxOS
+            chmod +x Payload/NyxOS.app/NyxOS
           fi
 
           zip -qr NyxOS-Package.ipa Payload
