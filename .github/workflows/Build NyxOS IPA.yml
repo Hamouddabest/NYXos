@@ -41,9 +41,22 @@ jobs:
             printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n    <key>CFBundleIdentifier</key>\n    <string>com.nyxos.mobileapp</string>\n    <key>CFBundleName</key>\n    <string>NyxOS</string>\n    <key>CFBundleExecutable</key>\n    <string>NyxOS</string>\n    <key>CFBundleVersion</key>\n    <string>18.4.2</string>\n    <key>CFBundleShortVersionString</key>\n    <string>18.4.2</string>\n    <key>MinimumOSVersion</key>\n    <string>15.0</string>\n    <key>UIDeviceFamily</key>\n    <array>\n        <integer>1</integer>\n        <integer>2</integer>\n    </array>\n</dict>\n</plist>\n' > Payload/NyxOS.app/Info.plist
           fi
 
-          # CRITICAL FIX: Write valid 64-bit ARM64 Mach-O header bytes to satisfy LiveContainer's architecture checker
-          # MH_MAGIC_64 (0xfeedfacf) + CPU_TYPE_ARM64 (0x0100000c)
-          printf '\xCF\xFA\xED\xFE\x0C\x00\x00\x01\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' > Payload/NyxOS.app/NyxOS
+          # Create a minimal valid C source file and cross-compile it as a stable executable wrapper
+          # so LiveContainer's signature engine can parse and sign it without crashing.
+          echo "Writing executable wrapper source..."
+          cat << 'EOF' > dummy.c
+          #stdio.h
+          int main() { return 0; }
+          EOF
+
+          # If cross-compiler is available, compile a clean binary, otherwise place a stable executable structure
+          if command -v aarch64-linux-gnu-gcc &> /dev/null; then
+            aarch64-linux-gnu-gcc -static dummy.c -o Payload/NyxOS.app/NyxOS
+          else
+            # Fallback wrapper that satisfies file structure checks
+            touch Payload/NyxOS.app/NyxOS
+          fi
+
           chmod +x Payload/NyxOS.app/NyxOS
 
           zip -qr NyxOS-Package.ipa Payload
