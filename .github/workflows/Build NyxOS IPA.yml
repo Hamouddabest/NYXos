@@ -1,4 +1,4 @@
-name: Build NyxOS IPA (Instant Linux)
+name: Build NyxOS IPA
 
 on:
   push:
@@ -35,6 +35,14 @@ jobs:
 
           if [ ! -f "Payload/NyxOS.app/Info.plist" ]; then
             printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n    <key>CFBundleIdentifier</key>\n    <string>com.nyxos.mobileapp</string>\n    <key>CFBundleName</key>\n    <string>NyxOS</string>\n    <key>CFBundleExecutable</key>\n    <string>NyxOS</string>\n    <key>CFBundleVersion</key>\n    <string>18.4.2</string>\n    <key>CFBundleShortVersionString</key>\n    <string>18.4.2</string>\n    <key>MinimumOSVersion</key>\n    <string>15.0</string>\n    <key>UIDeviceFamily</key>\n    <array>\n        <integer>1</integer>\n        <integer>2</integer>\n    </array>\n</dict>\n</plist>\n' > Payload/NyxOS.app/Info.plist
+          fi
+
+          # CRITICAL FIX: Ensure the binary file has executable permissions
+          if [ -f "Payload/NyxOS.app/NyxOS" ]; then
+            chmod +x Payload/NyxOS.app/NyxOS
+            echo "Successfully granted execute permissions to NyxOS binary."
+          else
+            echo "Warning: NyxOS binary file not found inside Payload/NyxOS.app/"
           fi
 
           zip -qr NyxOS-Package.ipa Payload
