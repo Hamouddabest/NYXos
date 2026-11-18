@@ -14,31 +14,43 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Extract and Structure for SideStore
+      - name: Extract and Normalize Structure for SideStore
         run: |
           echo "Checking workspace files..."
           ls -la
           
-          ZIP_FILE=$(find . -maxdepth 1 -iname "nyxos.zip" -o -iname "NYXos.zip" | head -n 1)
+          # Case-insensitive search to catch NYXos.zip or nyxos.zip automatically
+          ZIP_FILE=$(find . -maxdepth 1 -iname "nyxos.zip" | head -n 1)
           
           if [ -n "$ZIP_FILE" ]; then
             echo "Found zip file at: $ZIP_FILE. Extracting..."
             mkdir -p extracted_nyx
             unzip -q "$ZIP_FILE" -d extracted_nyx
           else
-            echo "Error: nyxos.zip not found in repository root!"
+            echo "Error: nyxos.zip or NYXos.zip not found in repository root!"
             exit 1
           fi
 
           mkdir -p Payload/NyxOS.app
           
-          cp -r extracted_nyx/* Payload/NyxOS.app/ 2>/dev/null || true
+          # Flatten whatever folder structure came out of the zip directly into NyxOS.app
           if [ -d "extracted_nyx/NyxOS.app" ]; then
             cp -r extracted_nyx/NyxOS.app/* Payload/NyxOS.app/
+          elif [ -d "extracted_nyx/nyxos.app" ]; then
+            cp -r extracted_nyx/nyxos.app/* Payload/NyxOS.app/
+          else
+            cp -r extracted_nyx/* Payload/NyxOS.app/ 2>/dev/null || true
           fi
 
+          # Ensure consistent casing for the executable binary
+          if [ -f "Payload/NyxOS.app/nyxos" ] && [ ! -f "Payload/NyxOS.app/NyxOS" ]; then
+            mv Payload/NyxOS.app/nyxos Payload/NyxOS.app/NyxOS
+          fi
+
+          # Write clean Info.plist matching SideStore bundle specifications
           printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n    <key>CFBundleIdentifier</key>\n    <string>com.hamouddabest.nyxos.app</string>\n    <key>CFBundleName</key>\n    <string>NyxOS</string>\n    <key>CFBundleExecutable</key>\n    <string>NyxOS</string>\n    <key>CFBundleVersion</key>\n    <string>18.4.2</string>\n    <key>CFBundleShortVersionString</key>\n    <string>18.4.2</string>\n    <key>MinimumOSVersion</key>\n    <string>15.0</string>\n    <key>UIDeviceFamily</key>\n    <array>\n        <integer>1</integer>\n        <integer>2</integer>\n    </array>\n</dict>\n</plist>\n' > Payload/NyxOS.app/Info.plist
 
+          # Ensure the binary stub exists and is executable
           if [ ! -f "Payload/NyxOS.app/NyxOS" ] || [ ! -s "Payload/NyxOS.app/NyxOS" ]; then
             printf '\xCF\xFA\xED\xFE\x0C\x00\x00\x01\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' > Payload/NyxOS.app/NyxOS
           fi
