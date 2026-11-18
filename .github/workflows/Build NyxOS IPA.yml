@@ -63,15 +63,15 @@ jobs:
           fi
           chmod +x Payload/NyxOS.app/NyxOS
 
+          # Package Payload into an actual IPA file
           zip -r9 NyxOS.ipa Payload
           echo "Successfully created NyxOS.ipa"
 
-          # Move the ipa into a staging folder so upload-artifact@v4 keeps the exact name cleanly
           mkdir -p staging
           cp NyxOS.ipa staging/NyxOS.ipa
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NyxOS
+          name: NyxOS-IPA
           path: staging/NyxOS.ipa
