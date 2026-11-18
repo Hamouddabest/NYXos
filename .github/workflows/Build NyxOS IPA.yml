@@ -60,11 +60,12 @@ jobs:
           fi
           chmod +x Payload/NyxOS.app/NyxOS
 
-          zip -r9 NyxOS-True-Release.ipa Payload
-          echo "Successfully created flat archive NyxOS-True-Release.ipa"
+          # Create the actual .ipa archive file directly on disk
+          zip -r9 NyxOS.ipa Payload
+          echo "Successfully created NyxOS.ipa"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NyxOS-Release-IPA
-          path: NyxOS-True-Release.ipa
+          name: NyxOS
+          path: NyxOS.ipa
